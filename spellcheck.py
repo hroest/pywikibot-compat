@@ -132,7 +132,8 @@ def cap(string):
     return string[0].upper() + string[1:]
 
 
-def askAlternative(word, context=None, title=''):
+def askAlternative(bigword, context=None, title='', replaceBy=None,):
+    word = bigword.derive()
     correct = None
     pywikibot.output(u"=" * 60)
     pywikibot.output(u"Found unknown word '%s' in '%s'" % (word, title))
@@ -141,12 +142,12 @@ def askAlternative(word, context=None, title=''):
         pywikibot.output(u"" + context)
         pywikibot.output(u"-" * 60)
     while not correct:
-        for i in xrange(len(Word(word).getAlternatives())):
+        w_alternatives = bigword.getAlternatives()
+        for i in xrange(len(w_alternatives)):
             pywikibot.output(u"%s: Replace by '%s'"
-                             % (i + 1,
-                                Word(word).getAlternatives()[i].replace('_',
-                                                                        ' ')))
-        pywikibot.output(u"a: Add '%s' as correct" % word)
+                             % (i+1,
+                                w_alternatives[i]))
+        pywikibot.output(u"a: Add '%s' as correct"%word)
         if word[0].isupper():
             pywikibot.output(u"c: Add '%s' as correct" % (uncap(word)))
         pywikibot.output(u"i: Ignore once (default)")
@@ -180,6 +181,7 @@ def askAlternative(word, context=None, title=''):
                         knownwords[word] = [correct.replace(' ', '_')]
                     newwords.append(word)
                 knownwords[correct] = correct
+                if not replaceBy is None: replaceBy[word] = correct
                 newwords.append(correct)
         elif answer in "cC" and word[0].isupper():
             correct = word
@@ -198,9 +200,10 @@ def askAlternative(word, context=None, title=''):
         elif answer == "x":
             correct = endpage
         else:
-            for i in xrange(len(Word(word).getAlternatives())):
+            for i in xrange(len(w_alternatives)):
                 if answer == str(i + 1):
-                    correct = Word(word).getAlternatives()[i].replace('_', ' ')
+                    correct = w_alternatives[i]
+                    if not replaceBy is None: replaceBy[word] = correct
     return correct
 
 
@@ -271,10 +274,8 @@ def spellcheck(page, checknames=True, knownonly=False, title=''):
         smallword = bigword.derive()
         if not Word(smallword).isCorrect(checkalternative=knownonly) and \
            (checknames or not smallword[0].isupper()):
-            replacement = askAlternative(smallword,
-                                         context=text[
-                                             max(0, loc - 40):loc + len(
-                                                 match.group(2)) + 40],
+            replacement = askAlternative(bigword,
+                                         context=text[max(0,loc-40):loc + len(match.group(2))+40],
                                          title=title)
             if replacement == edit:
                 import editarticle
@@ -305,6 +306,7 @@ class Word(object):
 
     def __init__(self, text):
         self.word = text
+        self.suggestions = None
 
     def __str__(self):
         return self.word
@@ -410,6 +412,7 @@ class Word(object):
                 return False
 
     def getAlternatives(self):
+        if not self.suggestions is None: return self.suggestions
         alts = []
         if self.word[0].islower():
             if Word(cap(self.word)).isCorrect():
@@ -423,7 +426,7 @@ class Word(object):
                 alts += [cap(w) for w in knownwords[uncap(self.word)]]
             except KeyError:
                 pass
-        return alts
+        return [a.replace('_',' ') for a in alts]
 
     def declare_correct(self):
         knownwords[self.word] = self.word
