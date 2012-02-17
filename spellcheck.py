@@ -309,7 +309,10 @@ class Word(object):
     def __str__(self):
         return self.word
 
-    def __cmp__(self, other):
+    def __len__(self):
+        return len(self.word)
+
+    def __cmp__(self,other):
         return self.word.__cmp__(str(other))
 
     def derive(self):
@@ -330,20 +333,23 @@ class Word(object):
                 shortword = shortword[shortword.rfind('|') + 1:]
         shortword = shortword.replace('[', '')
         shortword = shortword.replace(']', '')
+        #replace all occurencs of &nbsp;
+        shortword = shortword.replace('&nbsp;', ' ')
+        shortword = shortword.replace('nbsp;', ' ')
         # Remove non-alphanumerical characters at the start
         try:
-            while shortword[0] in string.punctuation:
+            while shortword[0] in string.punctuation + u'«»–−→“„‚‘’':
                 shortword = shortword[1:]
         except IndexError:
             return ""
         # Remove non-alphanumerical characters at the end; no need for the
         # try here because if things go wrong here, they should have gone
         # wrong before
-        while shortword[-1] in string.punctuation:
+        while shortword[-1] in string.punctuation + u'«»–−→“„‚‘’':
             shortword = shortword[:-1]
         # Do not check URLs
-        if shortword.startswith("http://"):
-            shortword = ""
+        if shortword.startswith("http://") or shortword.startswith("https://") or shortword.startswith("www."):
+            shortword=""
         # Do not check 'words' with only numerical characters
         number = True
         for i in xrange(len(shortword)):
