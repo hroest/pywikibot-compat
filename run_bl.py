@@ -3,7 +3,8 @@
 import Levenshtein
 # Python Levenshtein (apt-get install python-levenshtein) or
 # http://pypi.python.org/pypi/python-Levenshtein/
-import MySQLdb, spellcheck
+import MySQLdb
+import spellcheck_hunspell as spellcheck
 import wikipedia as pywikibot
 import pagegenerators
 import temp, h_lib
@@ -21,7 +22,7 @@ create table all_words_20110514 (
 )
 """
 
-reload( spellcheck )
+#reload( spellcheck )
 db = MySQLdb.connect(read_default_file="~/.my.cnf.hroest")
 cursor = db.cursor()
 sp = spellcheck.Spellchecker(xmldump = 'xmldump/extend/dewiki-latest-pages-articles.xml.bz2')
@@ -317,7 +318,7 @@ cursor.executemany(
 #SPELLCHECK BLACKLIST / XML
 ######################################
 #http://de.wikipedia.org/w/index.php?title=Volksentscheid&diff=61305581&oldid=61265643
-import spellcheck, h_lib
+import spellcheck_hunspell as spellcheck
 h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
 spellcheck.workonBlackXML(breakUntil='', batchNr=10000)
 
