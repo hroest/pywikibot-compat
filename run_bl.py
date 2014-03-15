@@ -1,26 +1,34 @@
-
-
 import Levenshtein
-# Python Levenshtein (apt-get install python-levenshtein) or
+# Python Levenshtein (apt-get install python-levenshtein) or 
 # http://pypi.python.org/pypi/python-Levenshtein/
 import MySQLdb
 import spellcheck_hunspell as spellcheck
 import wikipedia as pywikibot
 import pagegenerators
 import temp, h_lib
+################################################################################
+h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
+sp = spellcheck.Spellchecker()
+sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
+sp.readIgnoreFile(sp.ignorefile, 'utf8', sp.ignorePages)
+db = MySQLdb.connect(read_default_file="~/.my.cnf.hroest", charset = "utf8", use_unicode = True)
+db = MySQLdb.connect(read_default_file="~/.my.cnf.hroest")
+cursor = db.cursor()
 
+bb = temp.Blacklistchecker()
+db_dump = 20110514;
 
 ################################################################################
-# Create MySQL tables
+# Create MySQL tables {{{
 ################################################################################
 
 """
-drop table hroest.all_words_20110514 ;
-create table all_words_20110514 (
+drop table hroest.all_words_%s ;
+create table all_words_%s (
     article_id int,
     smallword varchar(255)
 )
-"""
+""" % (db_dump, db_dump)
 
 #reload( spellcheck )
 db = MySQLdb.connect(read_default_file="~/.my.cnf.hroest")
@@ -30,16 +38,60 @@ gen = sp.de_wikidump.parse()
 for page in gen:
     if not page.namespace == '0': continue
     prepare = [ [page.id, p.encode('utf8')] for p in sp.spellcheck_blacklist(page.text, {}, return_for_db=True)]
-    tmp = cursor.executemany( """ insert into hroest.all_words_20110514
-                   (article_id, smallword) values (%s,%s)""", prepare )
+    table = "insert into hroest.all_words_%s" % db_dump 
+    tmp = cursor.executemany( table + "(article_id, smallword) values (%s,%s)", prepare )
 
 """
-drop table hroest.countedwords_20110514 ;
-create table countedwords_20110514 as
+drop table hroest.countedwords_%(dump)s ;
+create table countedwords_%(dump)s as
 select count(*)  as occurence, smallword as word from
-all_words_20110514 group by smallword
-"""
+all_words_%(dump)s group by smallword;
+alter table hroest.countedwords_%(dump)s add index(occurence);
+alter table hroest.countedwords_%(dump)s add index(word);
+""" % ('dump' : db_dump }
 
+Query OK, 4788821 rows affected (16 hours 53 min 27.68 sec)
+Records: 4788821  Duplicates: 0  Warnings: 0
+
+"""
+create table wp_words (
+    id mediumint unsigned primary key auto_increment, #up to 16777215
+    word varchar(255) 
+);
+create table wp_articles_words (
+    word_id mediumint unsigned,  #up to 16777215
+    article_id mediumint unsigned
+);
+create table wp_countedwords (
+    occurence mediumint unsigned,
+    word_id mediumint unsigned
+);
+
+INSERT INTO wp_words (word) (
+    SELECT DISTINCT smallword FROM hroest.all_words_%(dump)s 
+);
+ALTER TABLE wp_words ADD UNIQUE INDEX(word);
+INSERT INTO wp_articles_words (word_id, article_id) (
+    SELECT id, article_id FROM wp_words 
+    INNER JOIN hroest.all_words_%(dump)s aw ON aw.smallword = wp_words.word
+);
+ALTER TABLE wp_articles_words ADD INDEX(word_id);
+ALTER TABLE wp_articles_words ADD INDEX(article_id);
+INSERT INTO wp_countedwords (occurence, word_id) (
+    SELECT count(*) AS occurence, word_id FROM wp_articles_words
+    group by word_id
+);
+ALTER TABLE wp_countedwords ADD INDEX(word_id);
+ALTER TABLE wp_countedwords ADD INDEX(occurence);
+""" % ('dump' : db_dump }
+
+Query OK, 4788821 rows affected (6 hours 48 min 34.72 sec)
+Query OK, 4788821 rows affected (8 min 45.82 sec)
+#
+Query OK, 389717523 rows affected (9 hours 11 min 22.43 sec)
+
+
+# }}}
 
 ################################################################################
 # Run
@@ -49,17 +101,7 @@ all_words_20110514 group by smallword
 # HERE WE START
 ###########################################################################
 ################################################################################
-h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
-sp = spellcheck.Spellchecker()
-sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
-sp.readIgnoreFile(sp.ignorefile, 'utf8', sp.ignorePages)
-db = MySQLdb.connect(read_default_file="~/.my.cnf.hroest", charset = "utf8", use_unicode = True)
-db = MySQLdb.connect(read_default_file="~/.my.cnf.hroest")
-cursor = db.cursor()
-bb = temp.Blacklistchecker()
-
-################################################################################
-# Search and replace (single words or all possible)
+# Search and replace (single words or all possible) {{{
 ################################################################################
 wrongs = 'Universs'
 corrects = 'Univers'
@@ -72,234 +114,135 @@ allwrong = cursor.fetchall()
 for wrong in allwrong:
     wrong = wrong[1]
     correct = wrong.replace( wrongs, corrects)
-    if correct == wrong:
+    if correct == wrong: 
         correct = wrong.replace( wrongs[1:], corrects[1:])
     print wrong, correct
     wrong = wrong.decode('utf8')
     correct = correct.decode('utf8')
     # Do a single search and replace operation using mediawiki-search
-    bb.searchNreplace(wrong, correct, replaceDerivatives)
+    bb.searchNreplace(wrong, correct)
 
 #A single search and replace
 wrong =   u'Dikographie'
 correct =u'Diskographie'
 
-
-
+# }}}
 
 ################################################################################
-# Search and replace previously found words
+# Search and replace previously found words {{{
 ################################################################################
 # errors: [[Lady Bird Johnson]] Familiy.jpg
 # [[Ehe]] - [[Datei:Brauysegen im Bett.gif|miniatur|Wye reymont vnd melusina zuamen<!--sic!-->]]
 
 skip = True
-for k in replace:
+for k in bb.replace:
     print k
     if k == u'bereit gestellt': skip = False
     if skip or k == u'bereit gestellt': continue
     wrong = k
     correct = replace[k]
-    bb.searchNreplace(wrong, correct, replaceDerivatives)
+    bb.searchNreplace(wrong, correct )
+
+
+todo = {}
+skip = True
+for k in bb.replace:
+    #print k
+    if k == u'Bennenung': skip = False
+    if skip or k == u'Bennenung': continue
+    wrong = k
+    correct = bb.replace[k]
+    todo[wrong] = correct
+    #bb.searchNreplace(wrong, correct )
+
 
 
 import temp
 reload(temp)
 bb = temp.Blacklistchecker()
 todo = {}
-for k,v in rcount.iteritems():
-    if v > 5 and not k == 'bereit gestellt':
+for k,v in bb.rcount.iteritems():
+    if v > 5 and not k == 'bereit gestellt': 
         todo[k] = v
-        print k,replace[k], v
+        print k,bb.replace[k], v
 
 
-for k,v in todo.iteritems():
+for k in sorted( todo.keys() ):
+        print k,v
+        v = todo[k]
         wrong = k
-        correct = replace[k]
-        wrong = wrong.decode('utf8')
+        correct = bb.replace[k]
+        try: wrong = wrong.decode('utf8')
+        except Exception: pass
         if correct.find(wrong) != -1: continue
         s = list(pagegenerators.SearchPageGenerator(wrong, namespaces='0'))
-        pages = []
-        for p in s: p.wrong = wrong; pages.append(p)
-        wr = [p.wrong for p in pages]
-        gen = pagegenerators.PreloadingGenerator(pages)
-        bb.checkit(gen, wr, correct, replace, noall, rcount, sp)
-
-
-
-
-################################################################################
-# Find the most common words and search for missspells of those
-################################################################################
-
-cursor.execute(
-"""
-select * from hroest.countedwords where occurence > 1000
-and length(word) > 6
-order by occurence  DESC
-""" )
-misspell = cursor.fetchall()
-
-myw = misspell[33][1]
-myw = myw.decode('utf8')
-#myw = 'Dezember'
-#myw = 'August'
-#myw = 'Mitglied'
-#myw = u'schließlich'
-#myw = 'Einwohner'
-#myw = 'Beispiel'
-#myw = 'insgesamt'
-l = len(myw)
-lcutoff = 0.8
-print myw
-
-# \xc2\xad is a soft hyphen that is sometimes used instaed of a space
-#
-# Search for all words that start with the same 3 chars
-# then
-sterm = myw[:3]
-cursor.execute(
-"""
-select * from hroest.countedwords where word like '%s'
-#and length(word) between %s and %s
-and word not like '%s'
-order by word
-""" % (sterm.encode('utf8')+'%', l-2, l+2, myw.encode('utf8')+'%') )
-similar = cursor.fetchall()
-#original = [s for s in similar if s[1] == myw][0]
-#original_count = original[0]
-candidates = [s[1] for s in similar if
-              Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff and
-              s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
-              and s[0] < 20 and not '\xc2\xad' in s[1]]
-# Search for all words that start with the same char and end with the same 3 chars
-sterm = myw[0] + '%' + myw[-3:]
-cursor.execute(
-"""
-select * from hroest.countedwords where word like '%s'
-#and length(word) between %s and %s
-and word not like '%s'
-order by word
-""" % (sterm.encode('utf8')+'%', l-2, l+2, myw.encode('utf8')+'%') )
-similar = cursor.fetchall()
-#original = [s for s in similar if s[1] == myw][0]
-#original_count = original[0]
-candidates.extend(  [s[1] for s in similar if
-              Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff and
-              s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
-              and s[0] < 20 and not '\xc2\xad' in s[1]] )
-#get unique ones
-candidates = list(set( candidates ) )
-print len(candidates)
-
-if True:
-    correct = myw
-    pages = []
-    wrongwords = []
-    for i, wrong in enumerate(candidates):
-        #occ = wrong[0]
-        #wrong = wrong[1]
-        #if wrong != 'Dezcember': continue
-        print i, wrong#, '(%s)' % occ
-        wrongwords.append(wrong)
-    #
-    toignore = pywikibot.input('Ignore?')
-    toignore = [int(t) for t in toignore.split(' ') if t != '']
-    #
-    for i, wrong in enumerate(candidates):
-        wrong = wrong.decode('utf8')
-        if correct.find(wrong) != -1: continue
-        if i in toignore: continue
-        s = list(pagegenerators.SearchPageGenerator(wrong, namespaces='0'))
-        print wrong, len(list(s))
+        print len(s)
         if len(list(s)) == 100:
             s = list(pagegenerators.SearchPageGenerator("%s" % wrong, namespaces='0'))
             print "now we have ", len(s), " found"
             if len(list(s)) == 100: s = s[:15]
+        pages = []
         for p in s: p.wrong = wrong; pages.append(p)
+        wr = [p.wrong for p in pages]
+        gen = pagegenerators.PreloadingGenerator(pages)
+        bb.checkit(gen, wr, correct, sp)
 
-wr = [p.wrong for p in pages]
+
+bb.store_wikipedia()
+
+# }}}
+
+################################################################################
+# Find the most common words and search for missspells of those {{{
+################################################################################
+
+cursor.execute(
+"""
+select * from hroest.countedwords_%s where occurence > 1000
+and length(word) > 6
+order by occurence  DESC
+"""  % db_dump)
+misspell = cursor.fetchall()
+
+start finding position... Person (Grammatik)
+start finding position... Insomnium
+start finding position... Orbis sensualium pictus (Abbildungen)
+"Liste der Abgeordneten zum Österreichischen Abgeordnetenhaus (XI. Legislaturperiode)"
+Liste der Ritter des Ordens vom Heiligen Geist
+
+# I got up to 71 : myw = misspell[71][1]
+
+#reload(temp)
+#bb = temp.Blacklistchecker()
+myw = misspell[76][1]
+myw = myw.decode('utf8')
+print myw
+candidates = bb.find_candidates(myw, cursor,
+                        occurence_cutoff = 20, lcutoff = 0.8,
+                        db='hroest.countedwords_%s' % db_dump)
+# pages = bb.load_candidates(myw, candidates,
+#                         db='hroest.countedwords_%s' % db_dump)
+pages = bb.load_candidates(myw, candidates) #, db='hroest.countedwords_%s' % db_dump)
+
+# TODO with umlaut, the "noall" doesnt work => unternehmen / unternaehme
+wrongwordlist = [p.wrong for p in pages]
 gen = pagegenerators.PreloadingGenerator(pages)
-bb.checkit(gen, wr, correct, replace, noall, rcount, sp)
+#bb.store_wikipedia()
+# reload(temp)
+# bb = temp.Blacklistchecker()
+bb.checkit(gen, wrongwordlist, myw, sp)
 
-
-
+bb.store_wikipedia()
 
 allws = [r for r in replace if replace[r] == myw ]
 corrects = myw
 for wrongs in allws:
-    bb.searchDerivatives(wrongs, corrects, cursor, replaceDerivatives, wrongs)
+    bb.searchDerivatives(wrongs, corrects, cursor, wrongs)
 
-
-import temp
-reload(temp)
-bb = temp.Blacklistchecker()
-
-sum(rcount.values())
-
-# store to wikipedia
-if True:
-    s = ''
-    for k in sorted(replace.keys()):
-        s += '* %s : %s\n' % (k, replace[k])
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
-    mypage.put( s )
-    s = ''
-    for k in sorted(noall):
-        s += '* %s \n' % (k)
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
-    mypage.put( s )
-    s = ''
-    for k in sorted(rcount.keys()):
-        if rcount[k] > 0: s += '* %s : %s\n' % (k, rcount[k])
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
-    mypage.put( s )
-    s = ''
-    for k in sorted(replaceDerivatives.keys()):
-        s += '* %s : %s\n' % (k, replaceDerivatives[k])
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
-    mypage.put( s )
-
-
-
-# Load from wikipedia
-if True:
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    myreplace = {}
-    for l in lines:
-        spl =  l.split(' : ')
-        myreplace[spl[0]] = spl[1].strip()
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    mycorrect = []
-    for l in lines:
-        mycorrect.append( l.strip() )
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    mycount = {}
-    for l in lines:
-        spl =  l.split(' : ')
-        mycount[spl[0]] = int(spl[1].strip() )
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    myreplacedd = {}
-    for l in lines:
-        spl =  l.split(' : ')
-        myreplacedd[spl[0]] = spl[1].strip()
-
-replace = myreplace
-noall = mycorrect
-rcount = mycount
-replaceDerivatives = myreplacedd
-
+# }}}
 
 ################################################################################
-# use the (personal) blacklist created from permutations
+# use the (personal) blacklist created from permutations {{{
 ################################################################################
 cursor.execute('select * from hroest.blacklist_found')
 a = cursor.fetchall()
@@ -311,11 +254,13 @@ for w in ww:
                     w[1].word, w[0], w[3], version])
 
 cursor.executemany(
-"INSERT INTO hroest.blacklist_found (%s)" % values +
+"INSERT INTO hroest.blacklist_found (%s)" % values +  
     "VALUES (%s,%s,%s,%s,%s,%s,%s)", self.prepare)
 
+# }}}
+
 ######################################
-#SPELLCHECK BLACKLIST / XML
+#SPELLCHECK BLACKLIST / XML 
 ######################################
 #http://de.wikipedia.org/w/index.php?title=Volksentscheid&diff=61305581&oldid=61265643
 import spellcheck_hunspell as spellcheck
@@ -324,15 +269,15 @@ spellcheck.workonBlackXML(breakUntil='', batchNr=10000)
 
 
 ###################################
-# Blacklist from the db
+# Blacklist from the db {{{
 ###################################
 
 # TODO exclude everything after Literatur
 # if and only if it is the latest header
 # TODO exclude if line starts with *
-sp.doNextBlackBatch_db(10000000, gen, db, '20101013')
+sp.doNextBlackBatch_db(10000000, gen, db, '20101013') 
 
-# about 50% result in
+# about 50% result in 
 donealready = 900
 version = 20101013
 pages = sp.get_blacklist_fromdb(db, donealready, version, 100)
@@ -340,18 +285,35 @@ next_done = max([p.dbid for p in pages])
 sp.processWrongWordsInteractively( pages )
 
 
+self.doReplace = []
+self.dontReplace = []
+ask = True
+import pagegenerators
+gen = pagegenerators.PreloadingGenerator(wrongWords)
+self.total = 0
+self.acc = 0
+self.changed_pages = 0
+
+wr = [p.wrong for p in pages]
+bb.checkit(pages, wrongs, correct, spellchecker):
+
+
+
 
 limit = 100
 cursor = db.cursor()
 values = """article_title, article_id, location, bigword_wrong,
         word_wrong, word_correct, version_used, id """
-q = """ select %s from hroest.blacklist_found
+q = """ select %s from hroest.blacklist_found 
                where word_correct like '%s'
                and version_used = %s
                order by id limit %s
-               """ % (values, 'Univers%', version, limit)
+               """ % (values, 'Univers%', version, limit) 
 cursor.execute(q)
 lines = cursor.fetchall()
 pages = sp._get_blacklist_fromdb(lines)
 
 sp.processWrongWordsInteractively( pages )
+
+
+# }}}
