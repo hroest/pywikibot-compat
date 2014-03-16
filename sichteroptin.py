@@ -1,6 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 
+# This code parses the page Benutzer:HRoestBot/Nachsichten/SichterOptIn and
+# gets a list of all people that would like to get an update of their revision
+
+#params
+optinhashfile = '/home/hroest/optinHash.py'
+optin = 'Benutzer:HRoestBot/Nachsichten/SichterOptIn'
+switch_bot_page = u'Benutzer:HRoestBot/Sichterbeiträge' 
+
 import wikipedia
 import ReviewBotLib
 site = wikipedia.getSite()
@@ -16,19 +24,26 @@ def assert_user_can_edit( testpage, botname):
     assert latest[2] == botname
 
 #assert we can edit
-h_lib.assert_user_can_edit( 'Benutzer:HRoestBot/BotTestPage', 'HRoestBot')
+assert_user_can_edit( 'Benutzer:HRoestBot/BotTestPage', 'HRoestBot')
 
-#params
-optinhashfile =  '/home/hroest/optinHash.py'
-
-optin = 'Benutzer:HRoestBot/Nachsichten/SichterOptIn'
+# get new data from optin page and update the optinHash.py
 optinPage = wikipedia.Page(wikipedia.getSite(),optin)
 text = optinPage.get()
 names = text.split('\n')
-names = [n for n in names if n != '']
+names = [n.strip() for n in names if n != '']
+
+switch_sichter = " {{#switch: {{{1}}}" 
 for name in names:
     print name.encode('utf-8')
-    ReviewBotLib.postReviewedPagesandTable( name, site )
+    nr_revs, outtable = ReviewBotLib.postReviewedPagesandTable( name, site )
+    if nr_revs == -1: 
+        continue
+
+    switch_sichter += " | " + name + " = " + str(nr_revs) + "\n"
+
+switch_sichter += " }}"
+botpage = wikipedia.Page( site, switch_bot_page)
+botpage.put_async( switch_sichter,  u'Update der Sichterbeiträge' )
 
 #now do the optin-hash
 sanatized_names = [n.replace("'", "\\'") for n in names]

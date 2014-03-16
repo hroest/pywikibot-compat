@@ -53,7 +53,11 @@ def getReviewedPages(user_name, site = pywikibot.getSite() ):
 
 def postReviewedPagesandTable( user_name, site = pywikibot.getSite() ):
     output, rev = getReviewedTable( user_name, site )
-    if output == -1: return
+
+    # Return dummy output
+    if output == -1:
+        return (-1, "")
+
     f_revs = len( rev )
     flagPage = pywikibot.Page( site,
                       u'Benutzer:%s/Sichterbeiträge' % user_name )
@@ -63,7 +67,10 @@ def postReviewedPagesandTable( user_name, site = pywikibot.getSite() ):
     outstr = ''
     for o in output:
         outstr += o
+
+    # Post table and return
     tablePage.put_async( outstr, 'Update der Sichtertabelle' )
+    return (f_revs, outstr)
 
 def getNrReviewedPages(user_name):
     return len(getReviewedPages(user_name))
