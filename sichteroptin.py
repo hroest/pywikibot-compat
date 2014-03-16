@@ -31,10 +31,11 @@ for name in names:
     ReviewBotLib.postReviewedPagesandTable( name, site )
 
 #now do the optin-hash
+sanatized_names = [n.replace("'", "\\'") for n in names]
 query = """
 select user_id, user_name from dewiki_p.user
 where user_name in ('%s')
-""" % "', '".join( names )
+""" % "', '".join( sanatized_names )
 
 import MySQLdb
 db = MySQLdb.connect(read_default_file="/home/hroest/.my.cnf")
@@ -45,7 +46,8 @@ f = open( optinhashfile, 'w')
 f.write( '# -*- coding: utf-8  -*-\n')
 f.write( 'optinhash = {\n')
 for l in lines:
-    f.write( "%s : '%s',\n" % (l[0], l[1]) )
+    sanitized_name = l[1].replace("'", "\\'")
+    f.write( "%s : '%s',\n" % (l[0], sanitized_name ))
 
 f.write( "495664 : 'Bot',")
 f.write( "560646 : 'Bot',")
