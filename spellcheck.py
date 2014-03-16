@@ -441,129 +441,130 @@ def checkPage(page, checknames=True, knownonly=False):
             summary = i18n.twtranslate(page.site, 'spellcheck-checking')
             page.put(text, summary)
 
+if __name__ == "__main__":
 
-try:
-    pageskip = []
-    edit = SpecialTerm("edit")
-    endpage = SpecialTerm("end page")
-    title = []
-    knownwords = {}
-    newwords = []
-    start = None
-    newpages = False
-    longpages = False
-    correct_html_codes = False
-    rebuild = False
-    checknames = True
-    checklang = None
-    knownonly = False
-
-    for arg in pywikibot.handleArgs():
-        if arg.startswith("-start:"):
-            start = arg[7:]
-        elif arg.startswith("-newpages"):
-            newpages = True
-        elif arg.startswith("-longpages"):
-            longpages = True
-        elif arg.startswith("-html"):
-            correct_html_codes = True
-        elif arg.startswith("-rebuild"):
-            rebuild = True
-        elif arg.startswith("-noname"):
-            checknames = False
-        elif arg.startswith("-checklang:"):
-            checklang = arg[11:]
-        elif arg.startswith("-knownonly"):
-            knownonly = True
-        elif arg.startswith("-knownplus"):
-            knownonly = 'plus'
-        else:
-            title.append(arg)
-
-    mysite = pywikibot.getSite()
-    if not checklang:
-        checklang = mysite.language()
-    filename = pywikibot.config.datafilepath('externals/spelling',
-                                             'spelling-' + checklang + '.txt')
-    print "Getting wordlist"
     try:
-        f = codecs.open(filename, 'r', encoding=mysite.encoding())
-        for line in f.readlines():
-            # remove trailing newlines and carriage returns
-            try:
-                while line[-1] in ['\n', '\r']:
-                    line = line[:-1]
-            except IndexError:
-                pass
-            #skip empty lines
-            if line != '':
-                if line[0] == "1":
-                    word = line[2:]
-                    knownwords[word] = word
-                else:
-                    line = line.split(' ')
-                    word = line[1]
-                    knownwords[word] = line[2:]
-                    for word2 in line[2:]:
-                        if not '_' in word2:
-                            knownwords[word2] = word2
-        f.close()
-    except IOError:
-        print "Warning! There is no wordlist for your language!"
-    else:
-        print "Wordlist successfully loaded."
-    # This is a purely interactive bot, we therefore do not want to put-throttle
-    pywikibot.put_throttle.setDelay(1)
-except:
-    pywikibot.stopme()
-    raise
-try:
-    if newpages:
-        for (page, date, length, loggedIn, user,
-             comment) in pywikibot.getSite().newpages(1000):
-            checkPage(page, checknames, knownonly)
-    elif start:
-        for page in pagegenerators.PreloadingGenerator(
-                pagegenerators.AllpagesPageGenerator(start=start,
-                                                     includeredirects=False)):
-            checkPage(page, checknames, knownonly)
+        pageskip = []
+        edit = SpecialTerm("edit")
+        endpage = SpecialTerm("end page")
+        title = []
+        knownwords = {}
+        newwords = []
+        start = None
+        newpages = False
+        longpages = False
+        correct_html_codes = False
+        rebuild = False
+        checknames = True
+        checklang = None
+        knownonly = False
 
-    if longpages:
-        for (page, length) in pywikibot.getSite().longpages(500):
-            checkPage(page, checknames, knownonly)
-
-    else:
-        title = ' '.join(title)
-        while title != '':
-            try:
-                page = pywikibot.Page(mysite, title)
-                text = page.get()
-            except pywikibot.NoPage:
-                print "Page does not exist."
-            except pywikibot.IsRedirectPage:
-                print "Page is a redirect page"
+        for arg in pywikibot.handleArgs():
+            if arg.startswith("-start:"):
+                start = arg[7:]
+            elif arg.startswith("-newpages"):
+                newpages = True
+            elif arg.startswith("-longpages"):
+                longpages = True
+            elif arg.startswith("-html"):
+                correct_html_codes = True
+            elif arg.startswith("-rebuild"):
+                rebuild = True
+            elif arg.startswith("-noname"):
+                checknames = False
+            elif arg.startswith("-checklang:"):
+                checklang = arg[11:]
+            elif arg.startswith("-knownonly"):
+                knownonly = True
+            elif arg.startswith("-knownplus"):
+                knownonly = 'plus'
             else:
-                checkPage(page, knownonly=knownonly)
-            title = pywikibot.input(u"Which page to check now? (enter to stop)")
-finally:
-    pywikibot.stopme()
-    filename = pywikibot.config.datafilepath('externals/spelling',
-                                             'spelling-' + checklang + '.txt')
-    if rebuild:
-        list = knownwords.keys()
-        list.sort()
-        f = codecs.open(filename, 'w', encoding=mysite.encoding())
-    else:
-        list = newwords
-        f = codecs.open(filename, 'a', encoding=mysite.encoding())
-    for word in list:
-        if Word(word).isCorrect():
-            if word != uncap(word):
-                if Word(uncap(word)).isCorrect():
-                    # Capitalized form of a word that is in the list
-                    # uncapitalized
-                    continue
-            f.write("1 %s\n" % word)
+                title.append(arg)
+
+        mysite = pywikibot.getSite()
+        if not checklang:
+            checklang = mysite.language()
+        filename = pywikibot.config.datafilepath('externals/spelling',
+                                                 'spelling-' + checklang + '.txt')
+        print "Getting wordlist"
+        try:
+            f = codecs.open(filename, 'r', encoding=mysite.encoding())
+            for line in f.readlines():
+                # remove trailing newlines and carriage returns
+                try:
+                    while line[-1] in ['\n', '\r']:
+                        line = line[:-1]
+                except IndexError:
+                    pass
+                #skip empty lines
+                if line != '':
+                    if line[0] == "1":
+                        word = line[2:]
+                        knownwords[word] = word
+                    else:
+                        line = line.split(' ')
+                        word = line[1]
+                        knownwords[word] = line[2:]
+                        for word2 in line[2:]:
+                            if not '_' in word2:
+                                knownwords[word2] = word2
+            f.close()
+        except IOError:
+            print "Warning! There is no wordlist for your language!"
         else:
-            f.write("0 %s %s\n" % (word, " ".join(knownwords[word])))
-    f.close()
+            print "Wordlist successfully loaded."
+        # This is a purely interactive bot, we therefore do not want to put-throttle
+        pywikibot.put_throttle.setDelay(1)
+    except:
+        pywikibot.stopme()
+        raise
+    try:
+        if newpages:
+            for (page, date, length, loggedIn, user,
+                 comment) in pywikibot.getSite().newpages(1000):
+                checkPage(page, checknames, knownonly)
+        elif start:
+            for page in pagegenerators.PreloadingGenerator(
+                    pagegenerators.AllpagesPageGenerator(start=start,
+                                                         includeredirects=False)):
+                checkPage(page, checknames, knownonly)
+
+        if longpages:
+            for (page, length) in pywikibot.getSite().longpages(500):
+                checkPage(page, checknames, knownonly)
+
+        else:
+            title = ' '.join(title)
+            while title != '':
+                try:
+                    page = pywikibot.Page(mysite, title)
+                    text = page.get()
+                except pywikibot.NoPage:
+                    print "Page does not exist."
+                except pywikibot.IsRedirectPage:
+                    print "Page is a redirect page"
+                else:
+                    checkPage(page, knownonly=knownonly)
+                title = pywikibot.input(u"Which page to check now? (enter to stop)")
+    finally:
+        pywikibot.stopme()
+        filename = pywikibot.config.datafilepath('externals/spelling',
+                                                 'spelling-' + checklang + '.txt')
+        if rebuild:
+            list = knownwords.keys()
+            list.sort()
+            f = codecs.open(filename, 'w', encoding=mysite.encoding())
+        else:
+            list = newwords
+            f = codecs.open(filename, 'a', encoding=mysite.encoding())
+        for word in list:
+            if Word(word).isCorrect():
+                if word != uncap(word):
+                    if Word(uncap(word)).isCorrect():
+                        # Capitalized form of a word that is in the list
+                        # uncapitalized
+                        continue
+                f.write("1 %s\n" % word)
+            else:
+                f.write("0 %s %s\n" % (word, " ".join(knownwords[word])))
+        f.close()
