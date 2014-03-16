@@ -122,8 +122,6 @@ Die Verwendung von ''N''-Chlorsuccinimid als Chlorierungsmittel ist ein Beispiel
 [[zh:N-氯代丁二酰亚胺]]
 """
 
-
-
 Aluminiumnitrat_rev69770393  = u"""{{Infobox Chemikalie
 | Name                = Aluminiumnitrat
 | Strukturformel      = [[Datei:Al3+.svg|40px|Aluminiumion]] <math>\mathrm{ \ \Biggl[}</math> [[Datei:Nitrat-Ion.svg|70px|Nitration]]<math>\mathrm{ \ \!\ \Biggr]_3^{-}}</math>
@@ -176,3 +174,73 @@ Aluminiumnitrat wirkt stark reizend auf die Schleimhäute der Augen und die Atem
 [[zh:硝酸铝]]
 """
 
+Ubichinon10_rev73998553 = u"""
+    {{SEITENTITEL:Coenzym Q<sub>10</sub>}}
+    {{Infobox Chemikalie
+    | Strukturformel  = [[Datei:CoenzymeQ10.svg|200px|Strukturformel von Coenzym Q10]]
+    | Andere Namen    = * 2-[(2''E'',6''E'',10''E'',14''E'',18''E'',22''E'',26''E'',30''E'',34''E'')-<br />3,7,11,15,19,23,27,31,35,39-Decamethyltetraconta-2,6,10,14,18,22,26,30,34,38-decaenyl]-5,6-dimethoxy-3-methylcyclohexa-2,5-dien-1,4-dion ([[IUPAC]])
+    * Ubichinon 10
+    * CoQ<sub>10</sub>
+    * Ubidecarenon
+    | Summenformel    = C<sub>59</sub>H<sub>90</sub>O<sub>4</sub>
+    | CAS             = 303-98-0
+    | PubChem         = 5281915
+    | Beschreibung    = 
+    | Molare Masse    = 863,34 g·[[mol]]<sup>−1</sup>
+    | Aggregat        = fest
+    | Dichte          = <!-- g·cm<sup>−3</sup> -->
+    | Schmelzpunkt    = 50 °C <ref name="Carl Roth" />
+    | Siedepunkt      = <!-- °C -->
+    | Dampfdruck      = <!-- [[Pascal (Einheit)|Pa]] ( °C) -->
+    | Löslichkeit     = <!-- ??? löslich in ???:  g·l<sup>−1</sup> ( °C) -->
+    | Quelle GefStKz  = <ref name="Carl Roth">{{Carl Roth|4047|Datum=12. April 2010}}</ref>
+    | Gefahrensymbole = {{Gefahrensymbole|-}}
+    | R               = {{R-Sätze|-}}
+    | S               = {{S-Sätze|-}}
+    | MAK             = <!-- ml·m<sup>−3</sup>, mg·m<sup>−3</sup> -->
+    }}
+
+    [[Datei:Ubichinon.svg|thumb|upright=1,39|Strukturformel der Ubichinone. Die Anzahl der Isopreneinheiten ist ''n'', beim Menschen ist ''n'' gewöhnlich 10.]]
+    '''Coenzym Q<sub>10</sub>''' (auch '''Ubichinon 10''', '''UQ''', '''Coenzym Q''', '''CoQ''' oder '''Q''') ist ein [[Chinone|Chinon]]-Derivat mit [[lipophil]]er [[Isoprenoide|Isoprenoid]]-Seitenkette, strukturell verwandt mit [[Vitamin K]] und [[Vitamin E]]. Die reduzierte, phenolische Form wird '''Ubihydrochinon''' oder '''Ubichinol''' (kurz QH<sub>2</sub>) genannt. Den Namen „Ubichinon“ verdankt das [[Coenzym]] der Tatsache, dass es in allen lebenden Organismen verbreitet ist (lateinisch ''ubique'' = überall).
+
+    """
+
+Butylscopolaminbromid_rev69501497 = u"""
+    {{Infobox Chemikalie
+     | Strukturformel        = [[Datei:Butylscopolamine skeletal.svg|250px|Strukturformel von Butylscopolamin]] [[Datei:Br-.svg|x30px|Bromid]]
+     | Freiname              = Butylscopolaminiumbromid
+     | Andere Namen          = 
+    * (1''R'',2''R'',4''S'',5''S'',7''s'',9''r'')-9-Butyl- 7-<nowiki>[[</nowiki>(2''S'')-3-hydroxy-2-phenylpropanoyl]- oxy]-9-methyl-3-oxa-9- azoniatricyclo<nowiki>[</nowiki>3.3.1.0<sup>2,4</sup>]nonanbromid
+    * Butylscopolamin
+    * ''N''-Butylscopolaminiumbromid
+    *Hyoscinbutylbromid
+    * Scopolaminbutylbromid
+     | Summenformel          = C<sub>21</sub>H<sub>30</sub>BrNO<sub>4</sub>
+     | CAS                   = 149-64-4
+     | PubChem               = 160883
+     | ATC-Code              = {{ATC|A03|BB01}}
+     | DrugBank              = 
+     | Wirkstoffgruppe       = * [[Parasympatholytikum]]
+    * [[Spasmolytikum]]
+     | Wirkmechanismus       = 
+     | Verschreibungspflicht = teilweise ja
+     | Molare Masse          = 440,37 [[Gramm|g]]·[[mol]]<sup>−1</sup>
+     | pKs                   = 
+     | Dichte                = 
+     | Schmelzpunkt          = 142−144 °C <ref name="MerckIndex"> ''The [[Merck Index]]. An Encyclopaedia of Chemicals, Drugs and Biologicals''. 14. Auflage, 2006, S. 259, ISBN 978-0-911910-00-1.</ref>
+     | Siedepunkt            = 
+     | Dampfdruck            = 
+     | Löslichkeit           = 
+     | Quelle GefStKz        = <ref name="Ph. Eur.">[http://crs.edqm.eu/db/4DCGI/db/4DCGI/MSDS?MSDS=H1450000 Safety Data Sheet for ''HYOSCINE BUTYLBROMIDE CRS'', 22. März 2007] – [[Europäisches Direktorat für die Qualität von Arzneimitteln|EDQM]], eingesehen 5. Juni 2009</ref>
+     | Gefahrensymbole       = {{Gefahrensymbole-klein|Xn}}
+     | R                     = {{R-Sätze|20/22}}
+     | S                     = {{S-Sätze|25|46}}
+     | MAK                   = 
+     | LD50                  = *1040 mg·kg<sup>−1</sup> (Ratte [[Peroral|p.o.]]) <ref name="Ph. Eur."/>
+    * 24 mg (Ratte, i.v.) <ref name="Kleemann Engel">A. Kleemann, J. Engel, B. Kutscher, D. Reichert: ''Pharmaceutical Substances - Synthesis, Patents, Applications'', 4th Edition Thieme 2001, ISBN 3-13-115134-X</ref>
+    * 1170 mg·kg<sup>−1</sup> (Maus [[Peroral|p.o.]]) <ref name="Kleemann Engel"/>
+    * 10,3 mg (Maus, i.v.) <ref name="Kleemann Engel"/>
+    }}
+
+    '''Butylscopolaminbromid''', auch kurz '''Butylscopolamin''' ist ein [[Arzneistoff]] aus der Gruppe der [[Parasympatholytikum|Parasympatholytika]]. Es blockiert den [[Muskarinischer Acetylcholinrezeptor|muskarinischen Acetylcholinrezeptor]] und gehört damit zu den Muscarinrezeptor-Antagonisten. Dadurch wirkt der Arzneistoff krampflösend und wird in der Form seines [[Bromide|Bromid]]salzes '''''N''-Butylscopolaminiumbromid''' als [[Spasmolytikum]] eingesetzt.
+    """
