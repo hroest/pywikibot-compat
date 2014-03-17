@@ -12,10 +12,9 @@ import time
 import re
 import wikipedia as pywikibot
 import pagegenerators
+import textrange_parser
 
-from spellcheck_hunspell import abstract_Spellchecker
-from spellcheck_hunspell import Word
-from spellcheck_hunspell import CallbackObject
+from spellcheck import Word
 
 class WrongWord(Word):
 
@@ -27,6 +26,125 @@ class WrongWord(Word):
         self.doReplace = doReplace
 
         Word.__init__(self, wrong_word)
+
+class CallbackObject(object):
+    "A class for the virus box"
+    def __init__(self):
+        pass
+
+    def __call__(self, page, error, optReturn1 = None, optReturn2 = None):
+        self.page = page
+        self.error = error
+        self.optReturn1 = optReturn1
+        self.optReturn2 = optReturn2
+
+def findRange(opening, closing, text, start=0, alternativeBreak = None,
+             ignore_in = [] ):
+    res = textrange_parser.findRange(opening, closing, text, start, alternativeBreak,
+             ignore_in)
+    return [res.ranges, [res.match, res.not_matching] ]
+
+class abstract_Spellchecker(object):
+
+    #
+    # Range checks
+    #
+
+    def forbiddenRanges(self, text):
+
+        # Set up ranges that we do not want to consider words inside those
+        # parts when spellchecking 
+
+        ran = []
+        albr = ['</ref', '\n'] # alternative breaks
+        extrabr = ['"', "'"] # extra breaks
+
+        ran.extend(findRange('{{', '}}', text)[0] )      #templates
+        ran.extend(findRange('[[', ']]', text)[0] )      #wiki links
+
+        ran.extend(findRange(u'{|', u'|}', text)[0] )    #tables
+
+        ran.extend(findRange('\"', '\"', text,
+            alternativeBreak = albr + extrabr)[0] )      #citations
+
+        ran.extend(findRange(u'«', u'»', text,
+            alternativeBreak = albr)[0] )                #citations
+
+        ran.extend(findRange(u'„', u'“', text,
+            alternativeBreak = albr + extrabr)[0] )      #citations
+
+        ran.extend(findRange('\'\'', '\'\'', text,
+            alternativeBreak = albr)[0] )                #italic
+
+        ran.extend(findRange('\'\'\'', '\'\'\'', text,
+            alternativeBreak = albr)[0] )                #bold
+
+        ran.extend(findRange('<!--', '-->', text)[0] )   #comments
+
+        # Regex-based ranges ... 
+        ran.extend( textrange_parser.hyperlink_range(text) )
+        # TODO we changed the interface here!!
+        #ran.extend( textrange_parser.picture_range(text) )       #everything except caption
+        ran.extend( textrange_parser.references_range(text) )     #all reftags
+        ran.extend( textrange_parser.regularTag_range(text) )     #all tags specified
+        ran.extend( textrange_parser.sic_comment_range(text) )    #<!--sic-->
+
+        # Remove trailing text at the end (references, weblinks etc)
+        mm = re.search("==\s*Weblinks\s*==", text)
+        if mm: ran.append( [mm.start(), len(text)] )
+        mm = re.search("==\s*Quellen\s*==", text)
+        if mm: ran.append( [mm.start(), len(text)] )
+        mm = re.search("==\s*Einzelnachweise\s*==", text)
+        if mm: ran.append( [mm.start(), len(text)] )
+        mm = re.search("\[\[Kategorie:", text)
+        if mm: ran.append( [mm.start(), len(text)] )
+
+        return ran
+
+    def check_in_ranges(self, ranges, wordStart, wordEnd, curr_r, loc):
+        """ Check for the next skippable range and move loc across it.
+
+        Args:
+            ranges( list(pair)) : a list of ranges (a pair of start/end
+                                  position) which should be skipped
+            wordStart(int) : a start position of the current word
+            wordEnd(int) : an end position of the current word
+            curr_r(int) : current range pointer
+            loc(int) : current text cursor position 
+
+        Returns:
+            tuple(curr_r, loc, current_context)
+            - curr_r: this contains the new current range pointer (which range is current)
+            - loc: this contains the new current text cursor
+            - current_context: True if context should be skipped, False otherwise
+        """
+       
+        wordMiddle = 0.5*(wordStart + wordEnd)
+
+        # Check if the current match is contained in the next range 
+        if curr_r < len(ranges) and \
+          ( (ranges[curr_r][0] <= wordMiddle and ranges[curr_r][1] > wordMiddle) or \
+          (ranges[curr_r][0] <= loc and ranges[curr_r][1] > loc) ):
+
+            # Update the current location to the end of the range
+            loc = ranges[curr_r][1]
+
+            # Choose location as end of next range while location is smaller
+            # than the start of the range
+            while curr_r < len(ranges) and ranges[curr_r][0] < loc:
+
+                # Only update location if the new location would be larger
+                if loc < ranges[curr_r][1]:
+                    loc = ranges[curr_r][1]
+
+                #print("jump to %s" % loc)
+                #print(ranges[curr_r])
+                curr_r += 1
+
+            return curr_r, loc, True
+
+        # Else, return the input parameters and 
+        return curr_r, loc, False
 
 class InteractiveWordReplacer(abstract_Spellchecker):
     """ Interactive replace of individual words
