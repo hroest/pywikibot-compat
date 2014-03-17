@@ -578,213 +578,141 @@ class Spellchecker(abstract_Spellchecker):
             if w == word: return True
 
 
-if __name__ == "__main__":
+def show_help():
+    thishelp = u"""
+Arguments for the Review Bot:
 
+-start:            Start spellchecking with this page
+
+-longpages:        Work on pages from Special:Longpages.
+
+-nosugg:           No suggestions
+
+    """
+    print thishelp
+
+
+def run_bot(allPages, sp):
+    Callbacks = []
+    stillSkip  = False;
+    firstPage = True
+    for page in allPages:
+        print(page);
+
+        try:
+            text = page.get()
+        except pywikibot.NoPage:
+            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+            continue
+        except pywikibot.IsRedirectPage:
+            pywikibot.output(u"%s is a redirect, skip!" % page.title())
+            continue
+
+        orig_text = text
+
+        ran = sp.forbiddenRanges(text)
+
+        choice = "y"
+        if not firstPage:
+            choice = pywikibot.inputChoice('Continue now with the spellcheck?', ['Yes', 'Reload Text', 'Next', 'Edit Text'], ['y', 'r', 'n', 'e'])
+
+        firstPage = False
+        if choice == 'r':
+            text = pywikibot.Page(pywikibot.getSite(), page.title()).get()
+        elif choice == 'n':
+            continue
+        elif choice == 'e':
+            text = spellcheck.saveEditArticle(text)
+
+        text = sp.spellcheck(text)
+        text = sp.askUser(text, page.title())
+
+        sp.unknown = []
+        sp.unknown_words = []
+
+        if text == orig_text:
+            continue
+
+        pywikibot.output('\03{lightred}===========\nDifferences to commit:\n\03{default}');
+        pywikibot.showDiff(orig_text, text)
+
+        choice = pywikibot.inputChoice('Commit?', ['Yes', 'No'], ['y', 'n'])
+        if choice == 'y':
+            callb = CallbackObject()
+            Callbacks.append(callb)
+            page.put_async(text, comment="kleine Verbesserungen, Rechtschreibung", callback=callb)
+
+def main():
     ###################################################################
     #                           MAIN                                  #
     ###################################################################
-    pageskip = []
-    edit = SpecialTerm("edit")
-    endpage = SpecialTerm("end page")
     title = []
-    knownwords = {}
-    newwords = []
     start = None
     newpages = False
     longpages = False
-    correct_html_codes = False
     rebuild = False
     checknames = True
+    category = None
     checklang = None
-    knownonly = False
 
+    sp = Spellchecker()
+    print "got Spellchecker"
 
-    def run_bot(allPages):
-        Callbacks = []
-        stillSkip  = False;
-        for page in allPages:
-            print(page);
-            # if stillSkip and not page.title() == skipUntil: continue
-            # else: stillSkip = False
-
-            try:
-                text = page.get()
-            except pywikibot.NoPage:
-                pywikibot.output(u"%s doesn't exist, skip!" % page.title())
-            except pywikibot.IsRedirectPage:
-                pywikibot.output(u"%s is a redirect, skip!" % page.title())
-
-            orig_text = text
-
-            ran = sp.forbiddenRanges(text)
-
-            choice = pywikibot.inputChoice('Continue now with the spellcheck?', ['Yes', 'Reload Text', 'Next', 'Edit Text'], ['y', 'r', 'n', 'e'])
-            if choice == 'r':
-                text = pywikibot.Page(pywikibot.getSite(), page.title()).get()
-            elif choice == 'n':
-                continue
-            elif choice == 'e':
-                text = spellcheck.saveEditArticle(text)
-
-            text = sp.spellcheck(text)
-            text = sp.askUser(text, page.title())
-
-            sp.unknown = []
-            sp.unknown_words = []
-            #if len(text) == len(orig_text): continue
-            pywikibot.output('\03{lightred}===========\nDifferences to commit:\n\03{default}');
-            pywikibot.showDiff(orig_text, text)
-
-            choice = pywikibot.inputChoice('Commit?', ['Yes', 'No'], ['y', 'n'])
-            if choice == 'y':
-                #choice = wikipedia.inputChoice('Message', ['Yes', 'No'], ['y', 'n'])
-                #wikipedia.output(u"x: Do not check the rest of this page")
-                #answer = wikipedia.input(u":")
-                callb = CallbackObject()
-                Callbacks.append(callb)
-                page.put_async(text, comment="kleine Verbesserungen, Rechtschreibung", callback=callb)
-
-
-    try:
-
-        sp = Spellchecker()
-        print "got Spellchecker"
-
-        for arg in pywikibot.handleArgs():
-            if arg.startswith("-start:"):
-                start = arg[7:]
-            elif arg.startswith("-newpages"):
-                newpages = True
-            elif arg.startswith("-longpages"):
-                longpages = True
-            elif arg.startswith("-nosugg"):
-                sp.nosuggestions = True
-            #elif arg.startswith("-html"):
-            #    correct_html_codes = True
-            #elif arg.startswith("-rebuild"):
-            #    rebuild = True
-            #elif arg.startswith("-noname"):
-            #    checknames = False
-            #elif arg.startswith("-checklang:"):
-            #    checklang = arg[11:]
-            #elif arg.startswith("-knownonly"):
-            #    knownonly = True
-            #elif arg.startswith("-knownplus"):
-            #    knownonly = 'plus'
-            else:
-                title.append(arg)
+    for arg in pywikibot.handleArgs():
+        if arg.startswith("-start:"):
+            start = arg[7:]
+        elif arg.startswith("-cat:"):
+            print "cat!"
+            category = arg[5:]
+        elif arg.startswith("-newpages"):
+            newpages = True
+        elif arg.startswith("-longpages"):
+            longpages = True
+        elif arg.startswith("-nosugg"):
+            sp.nosuggestions = True
+        elif arg.startswith("-html"):
+            correct_html_codes = True
+        elif arg.startswith('-h') or arg.startswith('--help'):
+            pywikibot.showHelp()
+            show_help()
+            return
+        else:
+            title.append(arg)
 
         # This is a purely interactive bot, we therefore do not want to put-throttle
         pywikibot.put_throttle.setDelay(1)
-    except:
-        pass
-        pywikipedia.stopme()
-        raise
 
     if start:
         gen = pagegenerators.PreloadingGenerator(pagegenerators.AllpagesPageGenerator(start=start,includeredirects=False))
+    elif newpages:
+        def wrapper_gen():
+            for (page, length) in pywikibot.getSite().newpages(500):
+                yield page
+        gen = wrapper_gen()
     elif longpages:
         def wrapper_gen():
             for (page, length) in pywikibot.getSite().longpages(500):
                 yield page
         gen = wrapper_gen()
     elif len(title) != 0:
-            title = ' '.join(title)
-            gen = [pywikibot.Page(pywikibot.getSite(),title)]
+        title = ' '.join(title)
+        gen = [pywikibot.Page(pywikibot.getSite(),title)]
+    elif category:
+        site = pywikibot.getSite()
+        cat = catlib.Category(site, category)
+        gen = pagegenerators.CategorizedPageGenerator(cat)
     else:
-
         ####################################
         #Examples
         site = pywikibot.getSite()
         cat = catlib.Category(site,'Kategorie:Staat in Europa')
         gen = pagegenerators.CategorizedPageGenerator(cat)
 
-    ## allPages = [];
-    ## for page in gen:
-    ##     allPages.append(page);
+    run_bot(gen, sp)
 
-    if __name__ == "__main__":
-        print "Run bot"
-        run_bot(gen)
-
-
-    # test
-    if False:
-        #we always get unicode strings from the pages
-        singleword = u'f\xfchren'
-        singleword = u"führen"
-        sp = spellcheck.Spellchecker()
-        sp.spellcheck( singleword )
-        assert len(sp.unknown) == 0
-        #
-        dofail = False
-        try: sp.huns_dede.spell(singleword)
-        except UnicodeEncodeError: dofail = True
-        assert dofail
-        assert sp.huns_dede.spell(singleword.encode('utf8')) ==  False
-        assert sp.huns_dede.spell(singleword.encode('iso-8859-1')) == True
-        assert sp.huns_dede.spell(singleword.encode('iso-8859-15')) == True
-
-
-
-
-    # spellcheck.save_one(spellcheck.filename, spellcheck.newwords)
-
-
-
-
-    """
+if __name__ == "__main__":
     try:
-        if newpages:
-            for (page, date, length, loggedIn, user, comment) in pywikibot.getSite().newpages(1000):
-                try:
-                    text = page.get()
-                except pywikibot.Error:
-                    pass
-                else:
-                    text = spellcheck(text, checknames=checknames,
-                                      knownonly=knownonly, title=page.title())
-                    if text != page.get():
-                        page.put(text)
-        elif start:
-            for page in pagegenerators.PreloadingGenerator(pagegenerators.AllpagesPageGenerator(start=start,includeredirects=False)):
-                try:
-                    text = page.get()
-                except pywikibot.Error:
-                    pass
-                else:
-                    text = spellcheck(text, checknames=checknames,
-                                      knownonly=knownonly, title=page.title())
-                    if text != page.get():
-                        page.put(text)
-
-        if longpages:
-            for (page, length) in pywikibot.getSite().longpages(500):
-                try:
-                    text = page.get()
-                except pywikibot.Error:
-                    pass
-                else:
-                    text = spellcheck(text, checknames=checknames,
-                                      knownonly=knownonly, title=page.title())
-                    if text != page.get():
-                        page.put(text)
-
-        else:
-            title = ' '.join(title)
-            while title != '':
-                try:
-                    page = pywikibot.Page(mysite,title)
-                    text = page.get()
-                except pywikibot.NoPage:
-                    print "Page does not exist."
-                except pywikibot.IsRedirectPage:
-                    print "Page is a redirect page"
-                else:
-                    text = spellcheck(text,knownonly=knownonly, title=page.title())
-                    if text != page.get():
-                        page.put(text)
-                title = pywikibot.input(u"Which page to check now? (enter to stop)")
+        main()
     finally:
-        pywikipedia.stopme()
-    """
+        pywikibot.stopme()
+
