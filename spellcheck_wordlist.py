@@ -5,12 +5,7 @@ This bot spellchecks Wikipedia pages using a list of bad words.
 """
 
 #
-# (C) Andre Engels, 2005
-# (C) Pywikipedia bot team, 2006-2011
-#
 # Distributed under the terms of the MIT license.
-#
-__version__ = '$Id$'
 #
 
 import time
@@ -25,6 +20,7 @@ from spellcheck_hunspell import CallbackObject, Word
 
 from InteractiveWordReplacer import InteractiveWordReplacer
 from InteractiveWordReplacer import BlacklistSpellchecker
+from InteractiveWordReplacer import collectBlacklistPages
 
 class BlacklistChecker():
 
@@ -71,45 +67,6 @@ class BlacklistChecker():
                 page.put_async(newtext, 
                    comment="Tippfehler entfernt: %s -> %s" % (wrong, correct) )
 
-def run_bot(allPages, sp, collect):
-    collectedPages = []
-    stillSkip  = False;
-    firstPage = True
-    start = time.time()
-    seenAlready = {}
-    wr = InteractiveWordReplacer()
-    for page in allPages:
-        if page.title() in seenAlready: 
-            continue
-
-        seenAlready[ page.title() ] = 0
-        print page
-
-        try:
-            text = page.get()
-        except pywikibot.NoPage:
-            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
-            continue
-        except pywikibot.IsRedirectPage:
-            pywikibot.output(u"%s is a redirect, skip!" % page.title())
-            continue
-
-        orig_text = text
-
-        ran = sp.forbiddenRanges(text)
-
-        wrong_words = sp.spellcheck_blacklist(text, sp.blackdic, return_words = True)
-        page.words = wrong_words
-
-        collectedPages.append(page)
-        if not collect:
-            wr.processWrongWordsInteractively([page])
-
-    print "==================================="
-    print "Processing %s pages took %0.4fs" % (len(collectedPages), time.time() - start)
-    if collect:
-        wr.processWrongWordsInteractively(collectedPages)
-
 def show_help():
     thishelp = u"""
 Arguments for the Review Bot:
@@ -133,11 +90,12 @@ def main():
     singleWord = None
     blacklistfile = None
     category = None
+    title = []
 
     for arg in pywikibot.handleArgs():
         if arg.startswith("-blacklist:"):
             blacklistfile = arg[11:]
-        if arg.startswith("-singleword:"):
+        elif arg.startswith("-singleword:"):
             singleWord = arg[12:]
         elif arg.startswith("-searchWiki"):
             searchWiki = True
@@ -147,6 +105,8 @@ def main():
             pywikibot.showHelp()
             show_help()
             return
+        else:
+            title.append(arg)
 
     # This is a purely interactive bot, we therefore do not want to put-throttle
     pywikibot.put_throttle.setDelay(1)
@@ -168,19 +128,24 @@ def main():
             s = pagegenerators.SearchPageGenerator(wrong, namespaces='0')
             gen = pagegenerators.PreloadingGenerator(s)
             blacklistChecker.simpleReplace(gen, wrong, correct)
+        return
     elif category:
         print "using cat", category
         cat = catlib.Category(pywikibot.getSite(), category)
         gen_ = pagegenerators.CategorizedPageGenerator(cat, recurse=True)
         gen = pagegenerators.PreloadingGenerator(gen_)
-        # blacklistChecker.simpleReplace(gen, wrong, correct)
-
-        collectFirst = True
-        sp = BlacklistSpellchecker()
-        sp.blackdic = wordlist
-        run_bot(gen, sp, collectFirst)
+    elif len(title) != 0:
+        title = ' '.join(title)
+        gen = [pywikibot.Page(pywikibot.getSite(),title)]
     else:
         print "No input articles selected. Abort."
+        return
+
+    collectFirst = True
+    sp = BlacklistSpellchecker()
+    sp.blackdic = wordlist
+    collectedPages, nrpages = collectBlacklistPages(-1, gen, sp.blackdic)
+    InteractiveWordReplacer().processWrongWordsInteractively(collectedPages)
 
 if __name__ == "__main__":
     try:
