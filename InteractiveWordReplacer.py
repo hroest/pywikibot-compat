@@ -5,12 +5,7 @@ This bot spellchecks Wikipedia pages using a list of bad words.
 """
 
 #
-# (C) Andre Engels, 2005
-# (C) Pywikipedia bot team, 2006-2011
-#
 # Distributed under the terms of the MIT license.
-#
-__version__ = '$Id$'
 #
 
 import time
@@ -21,6 +16,17 @@ import pagegenerators
 from spellcheck_hunspell import abstract_Spellchecker
 from spellcheck_hunspell import Word
 from spellcheck_hunspell import CallbackObject
+
+class WrongWord(Word):
+
+    def __init__(self, wrong_word, location=-1, bigword='', correctword='',
+                doReplace=False):
+        self.location = location
+        self.bigword = bigword
+        self.correctword = correctword
+        self.doReplace = doReplace
+
+        Word.__init__(self, wrong_word)
 
 class InteractiveWordReplacer(abstract_Spellchecker):
     """ Interactive replace of individual words
@@ -201,8 +207,7 @@ class BlacklistSpellchecker(abstract_Spellchecker):
     wrong and checks a gien text against this list.
 
     Possible usage
-    >>> sp = spellcheck.Spellchecker()
-    >>> sp.readBlacklist(sp.blacklistfile, sp.blackdic)
+    >>> sp = BlacklistSpellchecker()
     >>> result = sp.spellcheck_blacklist(text, {'Deuschland' : 'wrong'})
     """
 
