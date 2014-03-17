@@ -81,7 +81,7 @@ class Spellchecker(abstract_Spellchecker):
             #skip empty lines
             if line != '':
                 line = line.split(';')
-                blackdic[ line[0] ] = line[1]
+                blackdic[ line[0].lower() ] = line[1]
 
     def writeIgnoreFile(self):
         """
