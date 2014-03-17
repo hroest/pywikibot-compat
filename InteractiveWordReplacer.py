@@ -228,6 +228,10 @@ class BlacklistSpellchecker(abstract_Spellchecker):
         old_loc = 0
         curr_r = 0
         ranges = self.forbiddenRanges(text)
+        # for r in ranges:
+        #     print "==================================="
+        #     print r
+        #     print text[r[0]:r[1]]
         ranges = sorted(ranges)
         wrongWords = []
         prepare = []
@@ -319,6 +323,48 @@ class BlacklistSpellchecker(abstract_Spellchecker):
 
             loc += LocAdd
         return wrongWords
+
+def collectBlacklistPages(batchNr, gen, blackdic):
+    """ We go through the whole batch and check the content
+    at least we have a nice progress bar for the user
+    """
+    wrongWords = []
+    # Start loop
+    seenAlready = {}
+    for i, page in enumerate(gen):
+
+        try:
+            if not page.namespace() == 0: 
+                continue
+        except TypeError:
+            # Its a database object
+            if not page.namespace == '0':
+                continue
+
+        if page.title() in seenAlready: 
+            continue
+        seenAlready[ page.title() ] = 0 # add to seen already
+
+        # Get text
+        try:
+            text = page.get()
+        except pywikibot.NoPage:
+            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+            continue
+        except pywikibot.IsRedirectPage:
+            pywikibot.output(u"%s is a redirect, skip!" % page.title())
+            continue
+
+        # Process page
+        page.words = BlacklistSpellchecker().spellcheck_blacklist(text, blackdic, return_words=True)
+
+        if not len(page.words) == 0: 
+            wrongWords.append(page)
+
+        if batchNr > 0 and i > batchNr: 
+            break
+
+    return wrongWords, i
 
 if __name__ == "__main__":
     pass
