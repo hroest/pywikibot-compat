@@ -5,9 +5,10 @@ import MySQLdb
 import spellcheck_hunspell as spellcheck
 import wikipedia as pywikibot
 import pagegenerators
-import temp, h_lib
+import BlacklistChecker as temp
+import BlacklistChecker
 ################################################################################
-h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
+# h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
 sp = spellcheck.Spellchecker()
 sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
 sp.readIgnoreFile(sp.ignorefile, 'utf8', sp.ignorePages)
@@ -19,7 +20,34 @@ bb = temp.Blacklistchecker()
 db_dump = 20110514;
 
 ################################################################################
-# Create MySQL tables {{{
+# Simple run 
+################################################################################
+# {{{
+import BlacklistChecker
+bb = BlacklistChecker.Blacklistchecker(load=True)
+
+for i,key in enumerate(sorted(bb.replace.keys())):
+    if i < 475: continue
+    wrong = key
+    correct = bb.replace[key]
+    print "==================================="
+    print "Do replace: %s with %s" % (wrong, correct)
+    bb.searchNreplace(wrong, correct )
+
+bb.store_wikipedia()
+
+import operator
+most_likely = reversed(sorted(bb.rcount.iteritems(), key=operator.itemgetter(1)))
+for key, nr in most_likely:
+    wrong = key
+    correct = bb.replace[key]
+    bb.searchNreplace(wrong, correct )
+
+#}}}
+
+################################################################################
+# Create MySQL tables 
+# {{{
 ################################################################################
 
 """
@@ -36,7 +64,8 @@ cursor = db.cursor()
 sp = spellcheck.Spellchecker(xmldump = 'xmldump/extend/dewiki-latest-pages-articles.xml.bz2')
 gen = sp.de_wikidump.parse()
 for page in gen:
-    if not page.namespace == '0': continue
+    if not page.namespace == '0': 
+        continue
     prepare = [ [page.id, p.encode('utf8')] for p in sp.spellcheck_blacklist(page.text, {}, return_for_db=True)]
     table = "insert into hroest.all_words_%s" % db_dump 
     tmp = cursor.executemany( table + "(article_id, smallword) values (%s,%s)", prepare )
@@ -101,7 +130,8 @@ Query OK, 389717523 rows affected (9 hours 11 min 22.43 sec)
 # HERE WE START
 ###########################################################################
 ################################################################################
-# Search and replace (single words or all possible) {{{
+# Search and replace (single words or all possible) 
+# {{{
 ################################################################################
 wrongs = 'Universs'
 corrects = 'Univers'
@@ -129,7 +159,8 @@ correct =u'Diskographie'
 # }}}
 
 ################################################################################
-# Search and replace previously found words {{{
+# Search and replace previously found words 
+# {{{
 ################################################################################
 # errors: [[Lady Bird Johnson]] Familiy.jpg
 # [[Ehe]] - [[Datei:Brauysegen im Bett.gif|miniatur|Wye reymont vnd melusina zuamen<!--sic!-->]]
@@ -193,7 +224,8 @@ bb.store_wikipedia()
 # }}}
 
 ################################################################################
-# Find the most common words and search for missspells of those {{{
+# Find the most common words and search for missspells of those 
+# {{{
 ################################################################################
 
 cursor.execute(
@@ -242,7 +274,8 @@ for wrongs in allws:
 # }}}
 
 ################################################################################
-# use the (personal) blacklist created from permutations {{{
+# use the (personal) blacklist created from permutations 
+# {{{
 ################################################################################
 cursor.execute('select * from hroest.blacklist_found')
 a = cursor.fetchall()
@@ -264,12 +297,12 @@ cursor.executemany(
 ######################################
 #http://de.wikipedia.org/w/index.php?title=Volksentscheid&diff=61305581&oldid=61265643
 import spellcheck_hunspell as spellcheck
-h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
+# h_lib.assert_user_can_edit( u'Benutzer:HRoestTypo/BotTestPage', u'HRoestTypo')
 spellcheck.workonBlackXML(breakUntil='', batchNr=10000)
 
-
 ###################################
-# Blacklist from the db {{{
+# Blacklist from the db 
+# {{{
 ###################################
 
 # TODO exclude everything after Literatur
