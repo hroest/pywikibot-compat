@@ -65,11 +65,16 @@ import wikipedia as pywikibot
 from pywikibot import i18n
 import pagegenerators
 
+pageskip = []
+knownwords = {}
 
 class SpecialTerm(object):
     def __init__(self, text):
         self.style = text
 
+
+edit = SpecialTerm("edit")
+endpage = SpecialTerm("end page")
 
 def distance(a, b):
     # Calculates the Levenshtein distance between a and b.
@@ -453,11 +458,7 @@ def checkPage(page, checknames=True, knownonly=False):
 if __name__ == "__main__":
 
     try:
-        pageskip = []
-        edit = SpecialTerm("edit")
-        endpage = SpecialTerm("end page")
         title = []
-        knownwords = {}
         newwords = []
         start = None
         newpages = False
@@ -493,6 +494,8 @@ if __name__ == "__main__":
         mysite = pywikibot.getSite()
         if not checklang:
             checklang = mysite.language()
+
+        print "Load wordlist for language", checklang
         filename = pywikibot.config.datafilepath('externals/spelling',
                                                  'spelling-' + checklang + '.txt')
         print "Getting wordlist"
