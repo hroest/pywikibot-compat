@@ -19,7 +19,7 @@ import hunspell, webbrowser
 import xmlreader
 import pickle
 import wikipedia as pywikibot
-import pagegenerators
+import pagegenerators, catlib
 
 from spellcheck import SpecialTerm, distance, getalternatives, cap, uncap
 from spellcheck import removeHTML
@@ -54,7 +54,7 @@ class Spellchecker(abstract_Spellchecker):
         self.ignorePages = []
         self.ignorePerPages = {}
         self.unknown = []
-        #
+
         self.nosugg = []
         self.encounterOften = []
         self.suggestions_dic = {}
@@ -306,13 +306,12 @@ class Spellchecker(abstract_Spellchecker):
         self.dontReplace = []
         ask = True
         import pagegenerators
-        gen = pagegenerators.PreloadingGenerator(page)
-        #pages = []
+        gen = pagegenerators.PreloadingGenerator(pages)
         self.total = 0
         self.acc = 0
         self.changed_pages = 0
         for page in gen:
-            print('Page = %s'% page.title() )
+            print('Processing Page = %s'% page.title() )
             thisReplace = []
             try:
                 text = page.get()
@@ -327,12 +326,16 @@ class Spellchecker(abstract_Spellchecker):
                 #page.dbid = oldpage.dbid
                 page.words = oldpage.words
                 text = page.get()
+
             self.total += len(page.words)
             text = page.get()
             self.dontReplace = self.checkSpellingBlack(page, self.dontReplace)
             newtext = self.doReplacement(text, page)
             self.acc += len([w for w in page.words if w.doReplace])
-            if text == newtext: continue
+
+            if text == newtext: 
+                continue
+
             pywikibot.showDiff(text, newtext)
             if ask: choice = pywikibot.inputChoice('Commit?',
                ['Yes', 'yes', 'No', 'Yes to all'], ['y', '\\', 'n','a'])
@@ -344,7 +347,7 @@ class Spellchecker(abstract_Spellchecker):
                 self.Callbacks.append(callb)
                 page.put_async(newtext, comment=page.typocomment, callback=callb)
 
-            print thisReplace
+            # print thisReplace
             #if not len(thisReplace) == 0: doReplace.append([
             #    pywikibot.Page(pywikibot.getSite(), page.title() ), thisReplace])
 
@@ -386,7 +389,9 @@ class Spellchecker(abstract_Spellchecker):
         title = page.title()
         text = page.get()
         words = page.words
-        for w in words: w.doReplace = False
+        for w in words: 
+            w.doReplace = False
+
         # Go through all wrong words in this page
         for w in words:
             smallword = w.word
@@ -394,22 +399,30 @@ class Spellchecker(abstract_Spellchecker):
                and smallword in self.ignorePerPages[title]: continue
             bigword = Word(w.bigword)
             loc = w.location
+
             w.site = text.find( bigword.word, loc )
             if w.site == -1: w.site = text.find( bigword.word)
             if w.site == -1: pywikibot.output(u"Not found any more in %s: %s" % (
                 title, bigword.word)); continue
+
             # We now have a potential site for replacement
             sugg = w.correctword
             w.LocAdd = len(bigword)
             if smallword[0].isupper(): sugg = sugg[0].upper() + sugg[1:]
             if smallword == sugg: continue;         #unfortunately this happens
             if smallword in dontReplace: continue;  #dont always check the same words
+
+            # Print the two words
             pywikibot.output(u"Replace \03{lightred}\"%s\"" % smallword +
               "\03{default} \nby      \03{lightgreen}\"%s\"\03{default}" % sugg)
+
+            # Print context
             pywikibot.output(u"    %s" % text[max(0,w.site-55):w.site+len(w)+55])
             choice = pywikibot.inputChoice('', ['Yes', 'yes', 'No',
                'No but dont save', 'Replace by something else',
                 'Exit and go to next site'], ['y', '\\', 'n', 'b', 'r', 'x'])
+
+            # Evaluate user choice
             if choice == 'b':
                 if self.ignorePerPages.has_key( title ):
                     self.ignorePerPages[title].append( smallword)
@@ -429,8 +442,8 @@ class Spellchecker(abstract_Spellchecker):
     def doReplacement(self, text, page, ask = True):
         """This will perform the replacement for one page and return the text.
         """
-        print("doing replacement: ", page.title())
         page.typocomment  = u"Tippfehler entfernt: "
+
         #now we have the text, lets replace the word
         orig_text = text
         i = 0
@@ -495,6 +508,8 @@ class Spellchecker(abstract_Spellchecker):
         processWrongWordsInteractively.
 
         The pages have a dbid and words attached to them.
+
+        WrongWord: word_wrong, location, bigword_wrong, word_correct
         """
         cursor = db.cursor()
         values = """article_title, article_id, location, bigword_wrong,
@@ -520,7 +535,7 @@ class Spellchecker(abstract_Spellchecker):
             page = pywikibot.Page(pywikibot.getSite(), w[0].decode(decoding) )
             page.words = []
             for w in grouping[k]:
-                myword = WrongWord( text = w[4].decode(decoding),
+                myword = WrongWord(wrong_word = w[4].decode(decoding),
                     location = w[2],
                     bigword = w[3].decode(decoding),
                     correctword = w[5].decode(decoding) )
@@ -532,7 +547,6 @@ class Spellchecker(abstract_Spellchecker):
         gen = pagegenerators.PreloadingGenerator(pages)
         #for page in gen: pass
         return pages
-
 
     #
     # unused functions
@@ -560,12 +574,12 @@ class Spellchecker(abstract_Spellchecker):
 
 class WrongWord(Word):
 
-    def __init__(self, text, location=-1, bigword='', correctword='',
+    def __init__(self, wrong_word, location=-1, bigword='', correctword='',
                 doReplace=False):
         self.location = location
         self.bigword = bigword
         self.correctword = correctword
         self.doReplace = doReplace
 
-        Word.__init__(self, text)
+        Word.__init__(self, wrong_word)
 
