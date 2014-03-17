@@ -28,7 +28,31 @@ from spellcheck_hunspell import Word
 from spellcheck_hunspell import abstract_Spellchecker
 from spellcheck_hunspell import CallbackObject
 
+from InteractiveWordReplacer import InteractiveWordReplacer
+from InteractiveWordReplacer import BlacklistSpellchecker
+
 correct_html_codes = False
+
+def readBlacklist(filename, blackdic, encoding="utf8"):
+    f = codecs.open(filename, 'r', encoding = encoding)
+    for line in f.readlines():
+        # remove trailing newlines and carriage returns
+        try:
+            while line[-1] in ['\n', '\r']:
+                line = line[:-1]
+        except IndexError:
+            pass
+        #skip empty lines
+        if line != '':
+            line = line.split(';')
+            blackdic[ line[0].lower() ] = line[1]
+
+def writeBlacklist(filename, encoding, blackdic):
+    f = codecs.open(filename, 'w', encoding = encoding)
+    for key in sorted(blackdic.keys()):
+        f.write('%s;%s\n' % (key, blackdic[key]))
+    f.close()
+
 
 class Spellchecker(abstract_Spellchecker):
     """ Blacklist based spellchecker
@@ -38,7 +62,7 @@ class Spellchecker(abstract_Spellchecker):
 
     Possible usage
     >>> sp = spellcheck.Spellchecker()
-    >>> sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
+    >>> readBlacklist(sp.blacklistfile, sp.blackdic)
     >>> result = sp.spellcheck_blacklist(text, {'Deuschland' : 'wrong'})
     """
 
@@ -62,26 +86,6 @@ class Spellchecker(abstract_Spellchecker):
         self.blackdic = {}
         self.Callbacks = []
         self.gen = []
-
-    def writeBlacklist(self, filename, encoding, blackdic):
-        f = codecs.open(filename, 'w', encoding = encoding)
-        for key in sorted(self.blackdic.keys()):
-            f.write('%s;%s\n' % (key, self.blackdic[key]))
-        f.close()
-
-    def readBlacklist(self, filename, encoding, blackdic):
-        f = codecs.open(filename, 'r', encoding = encoding)
-        for line in f.readlines():
-            # remove trailing newlines and carriage returns
-            try:
-                while line[-1] in ['\n', '\r']:
-                    line = line[:-1]
-            except IndexError:
-                pass
-            #skip empty lines
-            if line != '':
-                line = line.split(';')
-                blackdic[ line[0].lower() ] = line[1]
 
     def writeIgnoreFile(self):
         """
@@ -126,7 +130,7 @@ class Spellchecker(abstract_Spellchecker):
     #
     def workonBlackXML(self, breakUntil = '', batchNr = 3000, doNoninteractive=False):
         import pickle
-        self.readBlacklist(self.blacklistfile, self.blacklistencoding, self.blackdic)
+        readBlacklist(self.blacklistfile, self.blackdic, encoding = self.blacklistencoding)
         self.readIgnoreFile(self.ignorefile, self.blacklistencoding, self.ignorePages)
         f = open( self.ignorefile_perpage); self.ignorePerPages = pickle.load(f)
 
@@ -353,7 +357,7 @@ class Spellchecker(abstract_Spellchecker):
 
         #read in if not done already
         if len(self.blackdic) == 0:
-            self.readBlacklist(self.blacklistfile, self.blacklistencoding, self.blackdic)
+            readBlacklist(self.blacklistfile, self.blackdic, encoding = self.blacklistencoding)
 
         #now the user input is finished, we now perform the required action
         #delete the word if it was not wrong
@@ -365,7 +369,7 @@ class Spellchecker(abstract_Spellchecker):
                 pass
 
         self.dontReplace = []
-        self.writeBlacklist(self.blacklistfile, 'utf8', self.blackdic)
+        writeBlacklist(self.blacklistfile, 'utf8', self.blackdic)
         self.writeIgnoreFile()
         #import pickle
         #f = open(self.ignorefile_perpage,'w'); pickle.dump( self.ignorePerPages, f); f.close()
@@ -589,6 +593,7 @@ def run_bot(allPages, sp, collect):
     firstPage = True
     start = time.time()
     seenAlready = {}
+    wr = InteractiveWordReplacer()
     for page in allPages:
         if page.title() in seenAlready: 
             continue
@@ -615,12 +620,12 @@ def run_bot(allPages, sp, collect):
         page.words = www
         collectedPages.append(page)
         if not collect:
-            sp.processWrongWordsInteractively([page])
+            wr.processWrongWordsInteractively([page])
 
     print "==================================="
     print "Processing %s pages took %0.4fs" % (len(collectedPages), time.time() - start)
     if collect:
-        sp.processWrongWordsInteractively(collectedPages)
+        wr.processWrongWordsInteractively(collectedPages)
 
 def show_help():
     thishelp = u"""
@@ -633,6 +638,8 @@ Arguments for the Review Bot:
 -blacklist:        Provide a list of wrong words (provide the wrong and the correct word per line separated by ;)
 
 -collect:          Collects pages first before asking for feedback
+
+-cat:              Recursively only work on pages of this category
 
     """
     print thishelp
@@ -652,7 +659,7 @@ def main():
     checklang = None
     blacklistfile = None
 
-    sp = Spellchecker()
+    sp = BlacklistSpellchecker()
 
     for arg in pywikibot.handleArgs():
         if arg.startswith("-start:"):
@@ -708,7 +715,8 @@ def main():
         sp.blacklistfile = blacklistfile
 
     print "Using blacklistfile: %s" % (sp.blacklistfile)
-    sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
+    sp.blackdic = {}
+    readBlacklist(sp.blacklistfile, sp.blackdic)
     run_bot(gen, sp, collectFirst)
 
 if __name__ == "__main__":
