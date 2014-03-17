@@ -14,9 +14,9 @@ import wikipedia as pywikibot
 import pagegenerators, catlib
 
 from spellcheck_blacklist import readBlacklist
-from spellcheck_blacklist import WrongWord
-from spellcheck_hunspell import abstract_Spellchecker
-from spellcheck_hunspell import CallbackObject, Word
+from SpellcheckLib import WrongWord
+from SpellcheckLib import abstract_Spellchecker
+from SpellcheckLib import CallbackObject, Word
 
 from SpellcheckLib import InteractiveWordReplacer
 from SpellcheckLib import BlacklistSpellchecker
