@@ -250,6 +250,9 @@ class Spellchecker(abstract_Spellchecker):
             # if we have a <nowiki></nowiki> break before, we dont want to interpret
             if text[loc-17:loc] == '<nowiki></nowiki>':
                 done = True
+            # if we have a closing wikilink "]]" before, we dont want to interpret
+            if text[loc-2:loc] == ']]':
+                done = True
 
             # try to find out whether its an abbreviation and has a '.' without capitalization
             if loc+len(ww)+5 < len(text) and \

@@ -295,5 +295,10 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
         assert len(self.sp.spellcheck_blacklist(text, {'mis' : 'wrong'})) == 1
         assert len(self.sp.spellcheck_blacklist(text, {'more' : 'wrong'})) == 1
 
+        # Words that are part of a wikilink 
+        text = u"testtext with [[link]]mistake and more words"
+        assert len(self.sp.spellcheck_blacklist(text, {'mistake' : 'wrong'})) == 0
+        assert len(self.sp.spellcheck_blacklist(text, {'more' : 'wrong'})) == 1
+
 if __name__ == "__main__":
     unittest.main()
