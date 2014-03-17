@@ -13,7 +13,7 @@ This bot spellchecks Wikipedia pages using a list of bad words.
 __version__ = '$Id$'
 #
 
-import re, sys
+import re, sys, time
 import string, codecs
 import hunspell, webbrowser
 import xmlreader
@@ -343,7 +343,7 @@ class Spellchecker(abstract_Spellchecker):
             #if choice == 'a': stillAsk=False; choice = 'y'
             if choice in ('y', '\\'):
                 self.changed_pages += 1
-                callb = h_lib_api.CallbackObject()
+                callb = CallbackObject()
                 self.Callbacks.append(callb)
                 page.put_async(newtext, comment=page.typocomment, callback=callb)
 
@@ -583,11 +583,19 @@ class WrongWord(Word):
 
         Word.__init__(self, wrong_word)
 
-def run_bot(allPages, sp):
-    Callbacks = []
+def run_bot(allPages, sp, collect):
+    collectedPages = []
     stillSkip  = False;
     firstPage = True
+    start = time.time()
+    seenAlready = {}
     for page in allPages:
+        if page.title() in seenAlready: 
+            continue
+
+        seenAlready[ page.title() ] = 0
+        print page
+
         try:
             text = page.get()
         except pywikibot.NoPage:
@@ -605,7 +613,14 @@ def run_bot(allPages, sp):
         # WrongWord: word_wrong, location, bigword_wrong, word_correct
         www = [WrongWord(w[0], w[2], w[1].word, w[3]) for w in ww]
         page.words = www
-        sp.processWrongWordsInteractively([page])
+        collectedPages.append(page)
+        if not collect:
+            sp.processWrongWordsInteractively([page])
+
+    print "==================================="
+    print "Processing %s pages took %0.4fs" % (len(collectedPages), time.time() - start)
+    if collect:
+        sp.processWrongWordsInteractively(collectedPages)
 
 def show_help():
     thishelp = u"""
@@ -616,6 +631,8 @@ Arguments for the Review Bot:
 -longpages:        Work on pages from Special:Longpages.
 
 -blacklist:        Provide a list of wrong words (provide the wrong and the correct word per line separated by ;)
+
+-collect:          Collects pages first before asking for feedback
 
     """
     print thishelp
@@ -630,6 +647,7 @@ def main():
     longpages = False
     rebuild = False
     checknames = True
+    collectFirst = False
     category = None
     checklang = None
     blacklistfile = None
@@ -647,6 +665,8 @@ def main():
             newpages = True
         elif arg.startswith("-longpages"):
             longpages = True
+        elif arg.startswith("-collect"):
+            collectFirst = True
         elif arg.startswith("-html"):
             correct_html_codes = True
         elif arg.startswith('-h') or arg.startswith('--help'):
@@ -675,6 +695,7 @@ def main():
         title = ' '.join(title)
         gen = [pywikibot.Page(pywikibot.getSite(),title)]
     elif category:
+        print "using cat", category
         cat = catlib.Category(pywikibot.getSite(), category)
         gen_ = pagegenerators.CategorizedPageGenerator(cat, recurse=True)
         gen = pagegenerators.PreloadingGenerator(gen_)
@@ -688,7 +709,7 @@ def main():
 
     print "Using blacklistfile: %s" % (sp.blacklistfile)
     sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
-    run_bot(gen, sp)
+    run_bot(gen, sp, collectFirst)
 
 if __name__ == "__main__":
     try:
