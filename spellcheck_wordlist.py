@@ -18,9 +18,9 @@ from spellcheck_blacklist import WrongWord
 from spellcheck_hunspell import abstract_Spellchecker
 from spellcheck_hunspell import CallbackObject, Word
 
-from InteractiveWordReplacer import InteractiveWordReplacer
-from InteractiveWordReplacer import BlacklistSpellchecker
-from InteractiveWordReplacer import collectBlacklistPages
+from SpellcheckLib import InteractiveWordReplacer
+from SpellcheckLib import BlacklistSpellchecker
+from SpellcheckLib import collectBlacklistPages
 
 class BlacklistChecker():
 
@@ -71,7 +71,7 @@ def show_help():
     thishelp = u"""
 Arguments for the Review Bot:
 
--searchWiki:       Use the internal search functionality to find pages for replacement
+-searchWiki:       Use the internal search functionality to find pages for replacement. This will perform a simple search and replace (no text parsing)
 
 -blacklist:        Provide a list of wrong words (provide the wrong and the correct word per line separated by ;)
 
@@ -123,6 +123,7 @@ def main():
     blacklistChecker = BlacklistChecker()
 
     if searchWiki:
+        # Simple search and replace ...
         for wrong, correct in wordlist.iteritems():
             print "== Replace %s with %s" % (wrong, correct)
             s = pagegenerators.SearchPageGenerator(wrong, namespaces='0')

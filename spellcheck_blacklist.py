@@ -28,10 +28,10 @@ from spellcheck_hunspell import Word
 from spellcheck_hunspell import abstract_Spellchecker
 from spellcheck_hunspell import CallbackObject
 
-from InteractiveWordReplacer import InteractiveWordReplacer
-from InteractiveWordReplacer import BlacklistSpellchecker
-from InteractiveWordReplacer import WrongWord
-from InteractiveWordReplacer import collectBlacklistPages
+from SpellcheckLib import InteractiveWordReplacer
+from SpellcheckLib import BlacklistSpellchecker
+from SpellcheckLib import WrongWord
+from SpellcheckLib import collectBlacklistPages
 
 correct_html_codes = False
 
