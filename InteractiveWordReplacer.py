@@ -20,6 +20,7 @@ import pagegenerators
 
 from spellcheck_hunspell import abstract_Spellchecker
 from spellcheck_hunspell import Word
+from spellcheck_hunspell import CallbackObject
 
 class InteractiveWordReplacer(abstract_Spellchecker):
     """ Interactive replace of individual words
@@ -160,10 +161,10 @@ class InteractiveWordReplacer(abstract_Spellchecker):
 
             self.performReplacementList.append(word)
 
-            # Try to find replacement site
+            # Try to find replacement site (text may have changed in the meantime)
             site = text.find( word.bigword, word.site )
             if site == -1:
-                site = text.find(  word.bigword )
+                site = text.find( word.bigword )
             if site == -1: 
                 continue
 
@@ -171,13 +172,18 @@ class InteractiveWordReplacer(abstract_Spellchecker):
             loc = site
             replacement = word.replacement
             LocAdd = word.LocAdd
-            replacementHere = text.find( replacement )
 
+            # Check for cases where the the wrong word is contained in the
+            # replacement but already corrected (this may happen if somebody
+            # has replaced the text in the meantime). 
+            # We would still find the wrong word but should not replace it!
+            replacementHere = text.find( replacement )
             while not replacementHere == site and not replacementHere == -1:
                 replacementHere = text.find( replacement , replacementHere+1)
 
-            if replacementHere == site:
-                continue #somebody else was here already
+            # exclude cases where replacement is contained in wrong word
+            if replacementHere == site and word.bigword.find(replacement) == -1:
+                continue
 
             # Replace the text
             text = text[:loc] + replacement + text[loc+LocAdd:]
