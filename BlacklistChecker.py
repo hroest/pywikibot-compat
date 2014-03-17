@@ -3,10 +3,11 @@
 
 import re
 import wikipedia
-import range as ranges
+import textrange_parser as ranges
 
 import wikipedia as pywikibot
 import pagegenerators
+
 class Blacklistchecker():
 
     def __init__(self, load=True):
@@ -16,7 +17,6 @@ class Blacklistchecker():
         self.replaceDerivatives = {}
         if load:
             self.load_wikipedia()
-
 
     def checkit(self, pages, wrongs, correct, spellchecker):
         """
@@ -129,19 +129,37 @@ class Blacklistchecker():
             else: return
 
     def searchNreplace(self, wrong, correct):
+        """ Uses the Wikipedia search tool to retrieve all pages that contain the
+        wrong word and go through them one by one.
+        """
         replacedic = self.replaceDerivatives
         s = pagegenerators.SearchPageGenerator(wrong, namespaces='0')
         gen = pagegenerators.PreloadingGenerator(s)
         for page in gen:
-            text = page.get()
+
+            try:
+                text = page.get()
+            except pywikibot.NoPage:
+                pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+                continue
+            except pywikibot.IsRedirectPage:
+                pywikibot.output(u"%s is a redirect, skip!" % page.title())
+                continue
+
             newtext = text.replace(wrong, correct)
             if newtext == text: continue
-            print page
+
             pywikibot.showDiff(text, newtext)
             choice = pywikibot.inputChoice('Commit?', 
-               ['Yes', 'yes', 'No', 'Yes to all'], ['y', '\\', 'n','a'])    
+               ['Yes', 'yes', 'No', 'No to all'], ['y', '\\', 'n', 'x'])    
+            if choice in ('x'):
+                return
             if choice in ('y', '\\'):
-                if not replacedic.has_key(wrong): replacedic[wrong] = correct
+                if not replacedic.has_key(wrong): 
+                    replacedic[wrong] = correct
+                if not self.rcount.has_key(wrong): 
+                    self.rcount[wrong] = 0
+                self.rcount[wrong] += 1
                 page.put_async(newtext, 
                    comment="Tippfehler entfernt: %s -> %s" % (wrong, correct) )
 
