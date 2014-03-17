@@ -583,3 +583,116 @@ class WrongWord(Word):
 
         Word.__init__(self, wrong_word)
 
+def run_bot(allPages, sp):
+    Callbacks = []
+    stillSkip  = False;
+    firstPage = True
+    for page in allPages:
+        try:
+            text = page.get()
+        except pywikibot.NoPage:
+            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+            continue
+        except pywikibot.IsRedirectPage:
+            pywikibot.output(u"%s is a redirect, skip!" % page.title())
+            continue
+
+        orig_text = text
+
+        ran = sp.forbiddenRanges(text)
+
+        ww = sp.spellcheck_blacklist(text, sp.blackdic)
+        # WrongWord: word_wrong, location, bigword_wrong, word_correct
+        www = [WrongWord(w[0], w[2], w[1].word, w[3]) for w in ww]
+        page.words = www
+        sp.processWrongWordsInteractively([page])
+
+def show_help():
+    thishelp = u"""
+Arguments for the Review Bot:
+
+-start:            Start spellchecking with this page
+
+-longpages:        Work on pages from Special:Longpages.
+
+-blacklist:        Provide a list of wrong words (provide the wrong and the correct word per line separated by ;)
+
+    """
+    print thishelp
+
+def main():
+    ###################################################################
+    #                           MAIN                                  #
+    ###################################################################
+    title = []
+    start = None
+    newpages = False
+    longpages = False
+    rebuild = False
+    checknames = True
+    category = None
+    checklang = None
+    blacklistfile = None
+
+    sp = Spellchecker()
+
+    for arg in pywikibot.handleArgs():
+        if arg.startswith("-start:"):
+            start = arg[7:]
+        elif arg.startswith("-cat:"):
+            category = arg[5:]
+        elif arg.startswith("-blacklist:"):
+            blacklistfile = arg[11:]
+        elif arg.startswith("-newpages"):
+            newpages = True
+        elif arg.startswith("-longpages"):
+            longpages = True
+        elif arg.startswith("-html"):
+            correct_html_codes = True
+        elif arg.startswith('-h') or arg.startswith('--help'):
+            pywikibot.showHelp()
+            show_help()
+            return
+        else:
+            title.append(arg)
+
+        # This is a purely interactive bot, we therefore do not want to put-throttle
+        pywikibot.put_throttle.setDelay(1)
+
+    if start:
+        gen = pagegenerators.PreloadingGenerator(pagegenerators.AllpagesPageGenerator(start=start,includeredirects=False))
+    elif newpages:
+        def wrapper_gen():
+            for (page, length) in pywikibot.getSite().newpages(500):
+                yield page
+        gen = wrapper_gen()
+    elif longpages:
+        def wrapper_gen():
+            for (page, length) in pywikibot.getSite().longpages(500):
+                yield page
+        gen = wrapper_gen()
+    elif len(title) != 0:
+        title = ' '.join(title)
+        gen = [pywikibot.Page(pywikibot.getSite(),title)]
+    elif category:
+        cat = catlib.Category(pywikibot.getSite(), category)
+        gen_ = pagegenerators.CategorizedPageGenerator(cat, recurse=True)
+        gen = pagegenerators.PreloadingGenerator(gen_)
+    else:
+        pywikibot.showHelp()
+        show_help()
+        return
+
+    if blacklistfile:
+        sp.blacklistfile = blacklistfile
+
+    print "Using blacklistfile: %s" % (sp.blacklistfile)
+    sp.readBlacklist(sp.blacklistfile, sp.blacklistencoding, sp.blackdic)
+    run_bot(gen, sp)
+
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        pywikibot.stopme()
+
