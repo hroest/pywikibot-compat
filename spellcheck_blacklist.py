@@ -30,6 +30,7 @@ from spellcheck_hunspell import CallbackObject
 
 from InteractiveWordReplacer import InteractiveWordReplacer
 from InteractiveWordReplacer import BlacklistSpellchecker
+from InteractiveWordReplacer import WrongWord
 
 correct_html_codes = False
 
@@ -53,17 +54,53 @@ def writeBlacklist(filename, encoding, blackdic):
         f.write('%s;%s\n' % (key, blackdic[key]))
     f.close()
 
+def collectBlacklistPages(batchNr, gen, blackdic):
+    """ We go through the whole batch and check the content
+    at least we have a nice progress bar for the user
+    """
+    wrongWords = []
+    # Start loop
+    seenAlready = {}
+    for i, page in enumerate(gen):
+
+        try:
+            if not page.namespace() == 0: 
+                continue
+        except TypeError:
+            # Its a database object
+            if not page.namespace == '0':
+                continue
+
+        if page.title() in seenAlready: 
+            continue
+        seenAlready[ page.title() ] = 0 # add to seen already
+
+        # Get text
+        try:
+            text = page.get()
+        except pywikibot.NoPage:
+            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+            continue
+        except pywikibot.IsRedirectPage:
+            pywikibot.output(u"%s is a redirect, skip!" % page.title())
+            continue
+
+        # Process page
+        page.words = BlacklistSpellchecker().spellcheck_blacklist(text, blackdic, return_words=True)
+
+        if not len(page.words) == 0: 
+            wrongWords.append(page)
+
+        if batchNr > 0 and i > batchNr: 
+            break
+
+    return wrongWords, i
 
 class Spellchecker(abstract_Spellchecker):
     """ Blacklist based spellchecker
 
     This spellchecker reads in a "blacklist" of words that are commonly spelled
     wrong and checks a gien text against this list.
-
-    Possible usage
-    >>> sp = spellcheck.Spellchecker()
-    >>> readBlacklist(sp.blacklistfile, sp.blackdic)
-    >>> result = sp.spellcheck_blacklist(text, {'Deuschland' : 'wrong'})
     """
 
     def __init__(self, xmldump=None):
@@ -120,12 +157,9 @@ class Spellchecker(abstract_Spellchecker):
                 ignore.append( line )
 
     #
-    # Call workonBlackXML on the top
-    #   while True:
-    #    =>  calls doNextBlackBatch
-    #          --> calls spellcheck_blacklist
-    #    =>  calls the interactive word replaces
+    # XML functions
     #
+    # Call this function to work on an XML file
     def workonBlackXML(self, breakUntil = '', batchNr = 3000, doNoninteractive=False):
         import pickle
         readBlacklist(self.blacklistfile, self.blackdic, encoding = self.blacklistencoding)
@@ -137,6 +171,7 @@ class Spellchecker(abstract_Spellchecker):
         generator = append(self.de_wikidump.parse())
 
         print("Blacklist successfully loaded")
+
         i = 0
         if not breakUntil == '':
             for page in generator:
@@ -147,26 +182,34 @@ class Spellchecker(abstract_Spellchecker):
                     sys.stdout.write("\rSearched pages: %s" % i)
 
         print("\nStarting to work on batches")
+
         if doNoninteractive:
             nrpages = 10000
             #here we all of them, loop until the pages done is not 10k any more
             while nrpages == 10000:
-                res, nrpages = self.doNextBlackBatch( nrpages, generator )
+                res, nrpages = collectBlacklistPages(nrpages, generator, self.blackdic)
             import pickle
             f = open( 'spellcheck_whole.dump', 'w')
             pickle.dump(res, f)
             f.close()
             return
 
+        # TODO load again the dumped result ...
         #f = open( 'spellcheck_whole.dump'); test = pickle.load(f)
 
+        # Loop:
+        # - process a batch of pages
+        # - work on them interactively
         while True:
-            wrongWords, nrpages = self.doNextBlackBatch(batchNr, generator)
+            wrongWords, nrpages = collectBlacklistPages(batchNr, generator, self.blackdic)
+
             print('Found %s wrong words.' % len(wrongWords))
             wr.processWrongWordsInteractively( wrongWords )
+
             choice = pywikibot.inputChoice('Load next batch?',
                    ['Yes', 'yes', 'No'], ['y', '\\', 'n'])
-            if choice == 'n': break
+            if choice == 'n': 
+                break
 
         errors = False
         doneSaving = True
@@ -183,126 +226,11 @@ class Spellchecker(abstract_Spellchecker):
             print('saved all pages')
             self.Callbacks = []
 
-    def doNextBlackBatch(self, batchNr, gen, offline=False):
-        """ We go through the whole batch and check the content
-        at least we have a nice progress bar for the user
-        """
-        i = 0
-        wrongWords = []
-        p = progress.ProgressMeter(total=batchNr, unit='pages')
-        for page in gen:
-            if not page.namespace == '0': continue
-            ww = self.spellcheck_blacklist( page.text, self.blackdic)
-            if not len(ww) == 0: wrongWords.append([page, ww])
-            i += 1
-            p.update(1)
-            if i > batchNr: break
-
-        return wrongWords, i
-
-    def spellcheck_blacklist(self, text, blackdic, return_for_db=False):
-        """ Checks a single text against the words in the blacklist and returns
-        a list of wrong words.
-
-        Called by doNextBlackBatch or doNextBlackBatch_db or doBlacklistNoninteractively
-        """
-        if correct_html_codes:
-            text = removeHTML(text)
-
-        loc = 0 # the current location in the text we parse
-        old_loc = 0
-        curr_r = 0
-        ranges = self.forbiddenRanges(text)
-        ranges = sorted(ranges)
-        wrongWords = []
-        prepare = []
-        self.blackdic = blackdic
-        while True:
-            #added "/" to first since sometimes // is in the text
-            #added "/" to second since in german some words are compositions
-            wordsearch = re.compile(r'([\s\=\<\>\_/-]*)([^\s\=\<\>\_/\-]+)')
-            #wordsearch = re.compile(r'([\s\=\<\>\_]*)([^\s\=\<\>\_/\-]+)') #old one
-            match = wordsearch.search(text,loc)
-            LocAdd = 0
-
-            if not match:
-                # No more words on this page
-                break
-
-            # Check if we are in forbidden range
-            curr_r, loc, in_nontext = self.check_in_ranges(ranges, 
-                                       match.start(), match.end(), curr_r, loc)
-            if in_nontext: 
-                continue
-
-            # Split the words up at special places like &nbsp; or a dash
-            spl = re.split('&nbsp;', match.group(2))
-            if len(spl) > 1: 
-                LocAdd = 5
-            elif len(spl) == 1:
-                spl = re.split(u'–', spl[0])
-
-            ww = spl[0]
-            LocAdd += len(ww) + 1
-            bigword = Word(ww)
-            smallword = bigword.derive()
-
-            # We advance the location by the characters skipped
-            loc += len(match.group(1))
-            done = False
-
-            # if we have a <nowiki></nowiki> break before, we dont want to interpret
-            if text[loc-17:loc] == '<nowiki></nowiki>':
-                done = True
-            # if we have a closing wikilink "]]" before, we dont want to interpret
-            if text[loc-2:loc] == ']]':
-                done = True
-
-            # try to find out whether its an abbreviation and has a '.' without capitalization
-            if loc+len(ww)+5 < len(text) and \
-               text[loc+len(ww)-1] == '.' and \
-               text[loc+len(ww)+1].islower() and \
-               not text[loc+len(ww):loc+len(ww)+5] == '<ref>':
-                done = True
-
-            # words that end with ' or -
-            if loc+len(ww) < len(text) and text[loc+len(ww)] == '-':
-                done = True
-
-            #exclude words that have uppercase letters in the middle
-            for l in smallword[1:]:
-                if l.isupper(): 
-                    done=True;
-
-            #exclude words that are smaller than 3 letters
-            if len( smallword.lower() ) < 3: 
-                done = True
-
-            ###################################
-            #use this code to insert into the database
-            if return_for_db:
-                if not done:
-                    wrongWords.append(smallword)
-
-            else:
-                ###################################
-                #here we check whether it is wrong
-                if not done and smallword.lower() in self.blackdic \
-                   and not smallword == '' and not smallword.isupper():
-
-                    if not smallword == self.blackdic[smallword.lower()]:
-                        wrongWords.append([smallword, bigword, loc, self.blackdic[smallword.lower()],
-                            text[max(0, loc-100):min(loc+100, len(text))] ])
-
-                # print "loc ", loc, " locadd ", LocAdd
-            loc += LocAdd
-        return wrongWords
-
     #
     # Database functions
-    #   call doNextBlackBatch_db and then get_blacklist_fromdb instead of doNextBlackBatch_db
-    #   then call interactive word replacement
     #
+
+    # Step 1: call this function to store the found words in the database
     def doNextBlackBatch_db(self, batchNr, gen, db, version):
         """
         This will go through a number of pages in the generator and compare
@@ -319,7 +247,7 @@ class Spellchecker(abstract_Spellchecker):
         word_wrong, word_correct, version_used """
         for page in gen:
             if not page.namespace == '0': continue
-            ww = self.spellcheck_blacklist( page.text, self.blackdic)
+            ww = BlacklistSpellchecker().spellcheck_blacklist( page.text, self.blackdic)
             self.prepare = []
             for w in ww:
                 self.prepare.append([page.title.encode(encoding), page.id , w[2],
@@ -333,6 +261,7 @@ class Spellchecker(abstract_Spellchecker):
             i += 1
             if batchNr > 0 and i > batchNr: break
 
+    # Step 2: call this function to retrieve the found words from the database
     def get_blacklist_fromdb(self, db, donealready, version, limit=100):
         """This will return pages with words in the blacklist ready for
         the interactive word replacer.
@@ -393,7 +322,7 @@ class Spellchecker(abstract_Spellchecker):
         start = time.time()
         for page in gen:
             if not page.namespace == '0': continue
-            ww = self.spellcheck_blacklist( page.text, self.blackdic)
+            ww = BlacklistSpellchecker().spellcheck_blacklist( page.text, self.blackdic)
             if not len(ww) == 0: wrongWords.append([page, ww])
             if i % 10000 == 0:
                 print i
@@ -402,56 +331,12 @@ class Spellchecker(abstract_Spellchecker):
             i += 1
         return wrongWords, i
 
-class WrongWord(Word):
-
-    def __init__(self, wrong_word, location=-1, bigword='', correctword='',
-                doReplace=False):
-        self.location = location
-        self.bigword = bigword
-        self.correctword = correctword
-        self.doReplace = doReplace
-
-        Word.__init__(self, wrong_word)
-
-def run_bot(allPages, sp, collect):
-    collectedPages = []
-    stillSkip  = False;
-    firstPage = True
+def run_bot(allPages, sp):
     start = time.time()
-    seenAlready = {}
-    wr = InteractiveWordReplacer()
-    for page in allPages:
-        if page.title() in seenAlready: 
-            continue
-
-        seenAlready[ page.title() ] = 0
-        print page
-
-        try:
-            text = page.get()
-        except pywikibot.NoPage:
-            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
-            continue
-        except pywikibot.IsRedirectPage:
-            pywikibot.output(u"%s is a redirect, skip!" % page.title())
-            continue
-
-        orig_text = text
-
-        ran = sp.forbiddenRanges(text)
-
-        ww = sp.spellcheck_blacklist(text, sp.blackdic)
-        # WrongWord: word_wrong, location, bigword_wrong, word_correct
-        www = [WrongWord(w[0], w[2], w[1].word, w[3]) for w in ww]
-        page.words = www
-        collectedPages.append(page)
-        if not collect:
-            wr.processWrongWordsInteractively([page])
-
+    collectedPages, nrpages = collectBlacklistPages(-1, allPages, sp.blackdic)
     print "==================================="
     print "Processing %s pages took %0.4fs" % (len(collectedPages), time.time() - start)
-    if collect:
-        wr.processWrongWordsInteractively(collectedPages)
+    InteractiveWordReplacer().processWrongWordsInteractively(collectedPages)
 
 def show_help():
     thishelp = u"""
@@ -462,8 +347,6 @@ Arguments for the Review Bot:
 -longpages:        Work on pages from Special:Longpages.
 
 -blacklist:        Provide a list of wrong words (provide the wrong and the correct word per line separated by ;)
-
--collect:          Collects pages first before asking for feedback
 
 -cat:              Recursively only work on pages of this category
 
@@ -480,7 +363,6 @@ def main():
     longpages = False
     rebuild = False
     checknames = True
-    collectFirst = False
     category = None
     checklang = None
     blacklistfile = None
@@ -498,8 +380,6 @@ def main():
             newpages = True
         elif arg.startswith("-longpages"):
             longpages = True
-        elif arg.startswith("-collect"):
-            collectFirst = True
         elif arg.startswith("-html"):
             correct_html_codes = True
         elif arg.startswith('-h') or arg.startswith('--help'):
@@ -543,7 +423,7 @@ def main():
     print "Using blacklistfile: %s" % (sp.blacklistfile)
     sp.blackdic = {}
     readBlacklist(sp.blacklistfile, sp.blackdic)
-    run_bot(gen, sp, collectFirst)
+    run_bot(gen, sp)
 
 if __name__ == "__main__":
     try:
