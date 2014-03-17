@@ -299,7 +299,12 @@ class Spellchecker(abstract_Spellchecker):
                     smallword in newwords):
                     done = True
                 #
-                #  (b.1) - we check whether it is a (german) genitive case and
+                #  (b.1) - we check whether it is less than 3 characters long
+                #
+                elif len(smallword) < 3:
+                    done = True
+                #
+                #  (b.2) - we check whether it is a (german) genitive case and
                 #  exist in this form in our whitelist, which is without trailing
                 #  "es" or "s"
                 #
@@ -309,7 +314,7 @@ class Spellchecker(abstract_Spellchecker):
                     Word(smallword[:-1]).isCorrect(checkalternative = knownonly))):
                     done = True
                 #
-                #  (b.2) - we check whether it is a (german) genitive case and
+                #  (b.3) - we check whether it is a (german) genitive case and
                 #  exist in this form in our whitelist, which is without trailing
                 #  "es" or "s"
                 #
@@ -545,7 +550,6 @@ def main():
         if arg.startswith("-start:"):
             start = arg[7:]
         elif arg.startswith("-cat:"):
-            print "cat!"
             category = arg[5:]
         elif arg.startswith("-newpages"):
             newpages = True
@@ -583,7 +587,7 @@ def main():
     elif category:
         site = pywikibot.getSite()
         cat = catlib.Category(site, category)
-        gen = pagegenerators.CategorizedPageGenerator(cat)
+        gen = pagegenerators.CategorizedPageGenerator(cat, recurse=True)
     else:
         ####################################
         #Examples
