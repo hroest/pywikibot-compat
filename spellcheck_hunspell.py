@@ -79,9 +79,16 @@ import pagegenerators, catlib
 
 from spellcheck import SpecialTerm, distance, getalternatives, cap, uncap
 from spellcheck import removeHTML, Word, askAlternative
+from spellcheck import edit, endpage
 
 de_CH_dictionaries = ['/usr/share/hunspell/de_CH.dic', '/usr/share/hunspell/de_CH.aff']
 de_DE_dictionaries = ['/usr/share/hunspell/de_DE.dic', '/usr/share/hunspell/de_DE.aff']
+
+correct_html_codes = False
+newwords = []
+knownonly = False
+
+hunspellEncoding = 'ISO-8859-15'
 
 def findRange(opening, closing, text, start=0, alternativeBreak = None,
              ignore_in = [] ):
@@ -263,12 +270,13 @@ class Spellchecker(abstract_Spellchecker):
                                      "not find \"%s\" anymore" % w)
                     continue
                 replacement = askAlternative(bigword,title=title,replaceBy=self.replaceBy,context=text[max(0,site-55):site+len(w)+55])
+
                 if replacement == edit:
                     newtxt = self.saveEditArticle(text, jumpIndex = 0, highlight = w)
                     if newtxt:
                         text = newtxt
                 elif replacement == endpage:
-                    break;
+                    break
                 else:
                     replacement = word.replace(replacement)
                     text = text[:site] + replacement + text[site+LocAdd:]
@@ -337,19 +345,18 @@ class Spellchecker(abstract_Spellchecker):
             if not match:
                 # No more words on this page
                 print "=" * 75
-                print "Time suggesting", self.time_suggesting
-                print "Total time", time.time() - starttime
+                print "Time suggesting %0.4f s" % self.time_suggesting
+                print "Total time %0.4f s" % (time.time() - starttime)
                 print "----------------------"
-                print "Time suggesting of total time %s " % (self.time_suggesting *100.0 / (time.time() - starttime) )
-                print(self.checkWords)
-                print(self.totalWordsChecked)
+                print "Time suggesting of total time %0.4f%% " % (self.time_suggesting *100.0 / (time.time() - starttime) )
                 break
 
             curr_r, loc, in_nontext = self.check_in_ranges(ranges, match.start(), match.end(), curr_r, loc)
             if in_nontext:
                 continue
 
-            #Split the words up at special places like &nbsp; or – (these will usually not be found in the dictionary)
+            # Split the words up at special places like &nbsp; or – (these will
+            # usually not be found in the dictionary)
             spl = re.split('&nbsp;', match.group(2))
             if len(spl) >1: LocAdd = 5
             elif len(spl) == 1:
@@ -375,7 +382,6 @@ class Spellchecker(abstract_Spellchecker):
     def _spellcheck_word(self, text, smallword, bigword, ww, loc, LocAdd, useCH):
 
             done = False
-            hunspellEncoding = 'ISO-8859-15'
             try:
                 smallword_encoded = smallword.encode(hunspellEncoding)
             except UnicodeEncodeError: 
@@ -457,10 +463,8 @@ class Spellchecker(abstract_Spellchecker):
                 #
                 #  (x) - if we found it more than once, its probably correct
                 #
-
                 if smallword in self.unknown and not smallword in self.encounterOften:
-                    print "often", done
-                    print self.encounterOften
+                    print "Skip word encountered multiple times:", smallword
                     self.encounterOften.append(smallword)
                     self.unknown.remove(smallword)
 
