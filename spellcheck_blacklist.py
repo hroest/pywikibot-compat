@@ -124,15 +124,15 @@ class Spellchecker(abstract_Spellchecker):
     #   while True:
     #    =>  calls doNextBlackBatch
     #          --> calls spellcheck_blacklist
-    #    =>  calls processWrongWordsInteractively
-    #          --> calls checkSpellingBlack
-    #          --> calls doReplacement
+    #    =>  calls the interactive word replaces
     #
     def workonBlackXML(self, breakUntil = '', batchNr = 3000, doNoninteractive=False):
         import pickle
         readBlacklist(self.blacklistfile, self.blackdic, encoding = self.blacklistencoding)
         self.readIgnoreFile(self.ignorefile, self.blacklistencoding, self.ignorePages)
         f = open( self.ignorefile_perpage); self.ignorePerPages = pickle.load(f)
+
+        wr = InteractiveWordReplacer()
 
         generator = append(self.de_wikidump.parse())
 
@@ -163,7 +163,7 @@ class Spellchecker(abstract_Spellchecker):
         while True:
             wrongWords, nrpages = self.doNextBlackBatch(batchNr, generator)
             print('Found %s wrong words.' % len(wrongWords))
-            self.processWrongWordsInteractively( wrongWords )
+            wr.processWrongWordsInteractively( wrongWords )
             choice = pywikibot.inputChoice('Load next batch?',
                    ['Yes', 'yes', 'No'], ['y', '\\', 'n'])
             if choice == 'n': break
@@ -298,184 +298,10 @@ class Spellchecker(abstract_Spellchecker):
             loc += LocAdd
         return wrongWords
 
-    def processWrongWordsInteractively(self, pages, offline=False):
-        """This will process pages with wrong words.
-
-        It expects a list of pages with words attached to it.
-        It calls checkSpellingBlack
-        It calls doReplacement
-        """
-        #here we ask the user for input
-        self.doReplace = []
-        self.dontReplace = []
-        ask = True
-        import pagegenerators
-        gen = pagegenerators.PreloadingGenerator(pages)
-        self.total = 0
-        self.acc = 0
-        self.changed_pages = 0
-        for page in gen:
-            print('Processing Page = %s'% page.title() )
-            thisReplace = []
-            try:
-                text = page.get()
-            except pywikibot.NoPage:
-                pywikibot.output(u"%s doesn't exist, skip!" % page.title())
-                continue
-            except pywikibot.IsRedirectPage:
-                pywikibot.output(u"%s is a redirect, get target!" % page.title())
-                oldpage = page
-                page = page.getRedirectTarget()
-                #not really necessary
-                #page.dbid = oldpage.dbid
-                page.words = oldpage.words
-                text = page.get()
-
-            self.total += len(page.words)
-            text = page.get()
-            self.dontReplace = self.checkSpellingBlack(page, self.dontReplace)
-            newtext = self.doReplacement(text, page)
-            self.acc += len([w for w in page.words if w.doReplace])
-
-            if text == newtext: 
-                continue
-
-            pywikibot.showDiff(text, newtext)
-            if ask: choice = pywikibot.inputChoice('Commit?',
-               ['Yes', 'yes', 'No', 'Yes to all'], ['y', '\\', 'n','a'])
-            else: choice = 'y'
-            #if choice == 'a': stillAsk=False; choice = 'y'
-            if choice in ('y', '\\'):
-                self.changed_pages += 1
-                callb = CallbackObject()
-                self.Callbacks.append(callb)
-                page.put_async(newtext, comment=page.typocomment, callback=callb)
-
-            # print thisReplace
-            #if not len(thisReplace) == 0: doReplace.append([
-            #    pywikibot.Page(pywikibot.getSite(), page.title() ), thisReplace])
-
-        #read in if not done already
-        if len(self.blackdic) == 0:
-            readBlacklist(self.blacklistfile, self.blackdic, encoding = self.blacklistencoding)
-
-        #now the user input is finished, we now perform the required action
-        #delete the word if it was not wrong
-        for notWrong in self.dontReplace:
-            try:
-                del self.blackdic[notWrong.lower()]
-                print('deleted: %s' % notWrong.lower());
-            except KeyError:
-                pass
-
-        self.dontReplace = []
-        writeBlacklist(self.blacklistfile, 'utf8', self.blackdic)
-        self.writeIgnoreFile()
-        #import pickle
-        #f = open(self.ignorefile_perpage,'w'); pickle.dump( self.ignorePerPages, f); f.close()
-
-        #TODO : dump doReplace into a file so that we know which ones we always
-        #want to replace
-
-        if offline:
-            import pickle
-            f = open('dump.spell', 'a')
-            pickle.dump(doReplace, f)
-            f.close()
-
-    def checkSpellingBlack(self, page, dontReplace):
-        """Interactively goes through all wrong words in a page.
-
-        All we do here is save doReplace = True if we want to replace it, while
-        doReplace will do the actual replacement.
-        Uses self.ignorePerPages and a local dontReplace
-        """
-        title = page.title()
-        text = page.get()
-        words = page.words
-        for w in words: 
-            w.doReplace = False
-
-        # Go through all wrong words in this page
-        for w in words:
-            smallword = w.word
-            if self.ignorePerPages.has_key(title) \
-               and smallword in self.ignorePerPages[title]: continue
-            bigword = Word(w.bigword)
-            loc = w.location
-
-            w.site = text.find( bigword.word, loc )
-            if w.site == -1: w.site = text.find( bigword.word)
-            if w.site == -1: pywikibot.output(u"Not found any more in %s: %s" % (
-                title, bigword.word)); continue
-
-            # We now have a potential site for replacement
-            sugg = w.correctword
-            w.LocAdd = len(bigword)
-            if smallword[0].isupper(): sugg = sugg[0].upper() + sugg[1:]
-            if smallword == sugg: continue;         #unfortunately this happens
-            if smallword in dontReplace: continue;  #dont always check the same words
-
-            # Print the two words
-            pywikibot.output(u"Replace \03{lightred}\"%s\"" % smallword +
-              "\03{default} \nby      \03{lightgreen}\"%s\"\03{default}" % sugg)
-
-            # Print context
-            pywikibot.output(u"    %s" % text[max(0,w.site-55):w.site+len(w)+55])
-            choice = pywikibot.inputChoice('', ['Yes', 'yes', 'No',
-               'No but dont save', 'Replace by something else',
-                'Exit and go to next site'], ['y', '\\', 'n', 'b', 'r', 'x'])
-
-            # Evaluate user choice
-            if choice == 'b':
-                if self.ignorePerPages.has_key( title ):
-                    self.ignorePerPages[title].append( smallword)
-                else: self.ignorePerPages[ title ] = [ smallword ]
-            if choice == 'n': dontReplace.append(w.word); continue
-            if choice == 'x': self.ignorePages.append( title ); return dontReplace
-            if choice == 'r':
-                w.replacement = pywikibot.input(u"What should I replace \"%s\" by?"
-                                              % bigword.word)
-                w.doReplace = True
-            if choice in ( 'y','\\'):
-                w.replacement = bigword.replace(sugg)
-                w.doReplace = True
-                print w.replacement#, rep
-        return dontReplace
-
-    def doReplacement(self, text, page, ask = True):
-        """This will perform the replacement for one page and return the text.
-        """
-        page.typocomment  = u"Tippfehler entfernt: "
-
-        #now we have the text, lets replace the word
-        orig_text = text
-        i = 0
-        for word in page.words:
-            if not word.doReplace: continue
-            self.doReplace.append(word)
-            site = text.find( word.bigword, word.site )
-            if site == -1:
-                site = text.find(  word.bigword )
-            if site == -1: continue
-            #now we have the site (page might be changed in meantime)
-            loc = site
-            replacement = word.replacement
-            LocAdd = word.LocAdd
-            replacementHere = text.find( replacement )
-            while not replacementHere == site and not replacementHere == -1:
-                replacementHere = text.find( replacement , replacementHere+1)
-            if replacementHere == site: continue #somebody else was here already
-            text = text[:loc] + replacement + text[loc+LocAdd:]
-            if i > 0: page.typocomment += " , "
-            page.typocomment += word.word + " => " + word.replacement
-            i += 1
-        return text
-
     #
     # Database functions
     #   call doNextBlackBatch_db and then get_blacklist_fromdb instead of doNextBlackBatch_db
-    #   then call processWrongWordsInteractively
+    #   then call interactive word replacement
     #
     def doNextBlackBatch_db(self, batchNr, gen, db, version):
         """
@@ -509,7 +335,7 @@ class Spellchecker(abstract_Spellchecker):
 
     def get_blacklist_fromdb(self, db, donealready, version, limit=100):
         """This will return pages with words in the blacklist ready for
-        processWrongWordsInteractively.
+        the interactive word replacer.
 
         The pages have a dbid and words attached to them.
 
