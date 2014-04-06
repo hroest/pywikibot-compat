@@ -28,7 +28,7 @@ class WrongWord(Word):
         Word.__init__(self, wrong_word)
 
 class CallbackObject(object):
-    "A class for the virus box"
+    """ Callback object """
     def __init__(self):
         pass
 
@@ -40,20 +40,22 @@ class CallbackObject(object):
 
 def findRange(opening, closing, text, start=0, alternativeBreak = None,
              ignore_in = [] ):
+    """ Wrapper around textrange parser 
+    """
     res = textrange_parser.findRange(opening, closing, text, start, alternativeBreak,
              ignore_in)
     return [res.ranges, [res.match, res.not_matching] ]
 
 class abstract_Spellchecker(object):
-
-    #
-    # Range checks
-    #
+    """
+    Base class for various spellcheckers
+    """
 
     def forbiddenRanges(self, text):
+        """ Identify ranges where we do not want to spellcheck.
 
-        # Set up ranges that we do not want to consider words inside those
-        # parts when spellchecking 
+        These ranges include templates, wiki links, tables etc
+        """
 
         ran = []
         albr = ['</ref', '\n'] # alternative breaks
@@ -83,7 +85,6 @@ class abstract_Spellchecker(object):
 
         # Regex-based ranges ... 
         ran.extend( textrange_parser.hyperlink_range(text) )
-        # TODO we changed the interface here!!
         #ran.extend( textrange_parser.picture_range(text) )       #everything except caption
         ran.extend( textrange_parser.references_range(text) )     #all reftags
         ran.extend( textrange_parser.regularTag_range(text) )     #all tags specified
@@ -92,10 +93,13 @@ class abstract_Spellchecker(object):
         # Remove trailing text at the end (references, weblinks etc)
         mm = re.search("==\s*Weblinks\s*==", text)
         if mm: ran.append( [mm.start(), len(text)] )
+
         mm = re.search("==\s*Quellen\s*==", text)
         if mm: ran.append( [mm.start(), len(text)] )
+
         mm = re.search("==\s*Einzelnachweise\s*==", text)
         if mm: ran.append( [mm.start(), len(text)] )
+
         mm = re.search("\[\[Kategorie:", text)
         if mm: ran.append( [mm.start(), len(text)] )
 
@@ -137,8 +141,6 @@ class abstract_Spellchecker(object):
                 if loc < ranges[curr_r][1]:
                     loc = ranges[curr_r][1]
 
-                #print("jump to %s" % loc)
-                #print(ranges[curr_r])
                 curr_r += 1
 
             return curr_r, loc, True
