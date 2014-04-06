@@ -334,8 +334,7 @@ class BlacklistSpellchecker(abstract_Spellchecker):
     def __init__(self):
         pass
 
-
-    def spellcheck_blacklist(self, text, blackdic, return_for_db=False, return_words=False):
+    def spellcheck_blacklist(self, text, badDict, return_for_db=False, return_words=False):
         """ Checks a single text against the words in the blacklist and returns
         a list of wrong words.
 
@@ -425,32 +424,32 @@ class BlacklistSpellchecker(abstract_Spellchecker):
             else:
                 ###################################
                 #here we check whether it is wrong
-                if not done and smallword.lower() in blackdic \
+                if not done and smallword.lower() in badDict \
                    and not smallword == '' and not smallword.isupper():
 
-                    if not smallword == blackdic[smallword.lower()]:
+                    if not smallword == badDict[smallword.lower()]:
                         if return_words:
                             wrongWords.append(
                                 WrongWord(wrong_word = smallword,
                                           location = loc, 
                                           bigword = bigword.word,
-                                          correctword = blackdic[smallword.lower()]
+                                          correctword = badDict[smallword.lower()]
                                 ) 
                             )
                         else:
-                            wrongWords.append([smallword, bigword, loc, blackdic[smallword.lower()],
+                            wrongWords.append([smallword, bigword, loc, badDict[smallword.lower()],
                                 text[max(0, loc-100):min(loc+100, len(text))] ])
 
             loc += LocAdd
         return wrongWords
 
-def collectBlacklistPages(batchNr, gen, blackdic):
-    """ We go through the whole batch and check the content
-    at least we have a nice progress bar for the user
+def collectBlacklistPages(batchNr, gen, badDict):
+    """Collect all wrong words in the provided page generator.
     """
+
     wrongWords = []
-    # Start loop
     seenAlready = {}
+
     for i, page in enumerate(gen):
 
         try:
@@ -476,7 +475,7 @@ def collectBlacklistPages(batchNr, gen, blackdic):
             continue
 
         # Process page
-        page.words = BlacklistSpellchecker().spellcheck_blacklist(text, blackdic, return_words=True)
+        page.words = BlacklistSpellchecker().spellcheck_blacklist(text, badDict, return_words=True)
 
         if not len(page.words) == 0: 
             wrongWords.append(page)
