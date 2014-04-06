@@ -128,41 +128,6 @@ class Blacklistchecker():
             elif choice == 'ra': pass #TODO
             else: return
 
-    def searchNreplace(self, wrong, correct):
-        """ Uses the Wikipedia search tool to retrieve all pages that contain the
-        wrong word and go through them one by one.
-        """
-        replacedic = self.replaceDerivatives
-        s = pagegenerators.SearchPageGenerator(wrong, namespaces='0')
-        gen = pagegenerators.PreloadingGenerator(s)
-        for page in gen:
-
-            try:
-                text = page.get()
-            except pywikibot.NoPage:
-                pywikibot.output(u"%s doesn't exist, skip!" % page.title())
-                continue
-            except pywikibot.IsRedirectPage:
-                pywikibot.output(u"%s is a redirect, skip!" % page.title())
-                continue
-
-            newtext = text.replace(wrong, correct)
-            if newtext == text: continue
-
-            pywikibot.showDiff(text, newtext)
-            choice = pywikibot.inputChoice('Commit?', 
-               ['Yes', 'yes', 'No', 'No to all'], ['y', '\\', 'n', 'x'])    
-            if choice in ('x'):
-                return
-            if choice in ('y', '\\'):
-                if not replacedic.has_key(wrong): 
-                    replacedic[wrong] = correct
-                if not self.rcount.has_key(wrong): 
-                    self.rcount[wrong] = 0
-                self.rcount[wrong] += 1
-                page.put_async(newtext, 
-                   comment="Tippfehler entfernt: %s -> %s" % (wrong, correct) )
-
     def searchDerivatives(self, wrongs, corrects, cursor, notlike='', db='hroest.countedwords'):
         q = """ select * from %s
         where word like '%s' 
@@ -184,15 +149,26 @@ class Blacklistchecker():
                 if not self.replaceDerivatives.has_key(wrongs): 
                     self.replaceDerivatives[wrongs] = corrects
 
-
+    #
+    ## Find and evaluate Levenshtein candidates
+    # 
     def find_candidates(self, myw, cursor, 
                         occurence_cutoff = 20, lcutoff = 0.8,
                         db='hroest.countedwords'):
+        """
+        Find candidate misspellings for the input (correct) myw 
+
+        Searches for all words starting with the same 3 characters in
+        Wikipedia, then selects candidates among those with a Levenshtein ratio
+        of less than the given cutoff. Also the word occur less than
+        occurence_cutoff to be considered a candidate.
+        """
+
         import Levenshtein
-        # \xc2\xad is a soft hyphen that is sometimes used instaed of a space
-        # 
-        # Search for all words that start with the same 3 chars
-        # then 
+
+        # \xc2\xad is a soft hyphen that is sometimes used instead of a space
+
+        # 1. Search for all words that start with the same 3 chars
         sterm = myw[:3]
         l = len(myw)
         cursor.execute(
@@ -205,11 +181,15 @@ class Blacklistchecker():
         similar = cursor.fetchall()
         #original = [s for s in similar if s[1] == myw][0]
         #original_count = original[0]
+
+        # 2. Select candidates that have a Levenshtein ratio less than the cutoff
         candidates = [s[1] for s in similar if 
-                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff and
-                      s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
-                      and s[0] < occurence_cutoff and not '\xc2\xad' in s[1]] 
-        # Search for all words that start with the same char and end with the same 3 chars
+                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff 
+                      and s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
+                      and s[0] < occurence_cutoff 
+                      and not '\xc2\xad' in s[1]] 
+
+        # 3. Search for all words that start with the same char and end with the same 3 chars
         sterm = myw[0] + '%' + myw[-3:]
         cursor.execute(
         """
@@ -221,11 +201,15 @@ class Blacklistchecker():
         similar = cursor.fetchall()
         #original = [s for s in similar if s[1] == myw][0]
         #original_count = original[0]
+
+        # 4. Select candidates that have a Levenshtein ratio less than the cutoff
         candidates.extend(  [s[1] for s in similar if 
-                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff and
-                      s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
-                      and s[0] < occurence_cutoff and not '\xc2\xad' in s[1]] )
-        #get unique ones
+                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff 
+                      and s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
+                      and s[0] < occurence_cutoff 
+                      and not '\xc2\xad' in s[1]] )
+
+        # 5. Return unique set 
         return list(set( candidates ) )
 
     def load_candidates(self, correct, candidates):
@@ -259,65 +243,68 @@ class Blacklistchecker():
                 pages.append(p)
         return pages
 
-    def load_wikipedia(self):
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
-        text = mypage.get()
-        lines = text.split('* ')[1:]
-        myreplace = {}
-        for l in lines:
-            spl =  l.split(' : ')
-            myreplace[spl[0]] = spl[1].strip()
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
-        text = mypage.get()
-        lines = text.split('* ')[1:]
-        mycorrect = []
-        for l in lines:
-            mycorrect.append( l.strip() )
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
-        text = mypage.get()
-        lines = text.split('* ')[1:]
-        mycount = {}
-        for l in lines:
-            spl =  l.split(':')
-            mycount[spl[0].strip()] = int(spl[1].strip() )
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
-        text = mypage.get()
-        lines = text.split('* ')[1:]
-        myreplacedd = {}
-        for l in lines:
-            spl =  l.split(' : ')
-            myreplacedd[spl[0]] = spl[1].strip()
+#
+## Load and store dictionary data from Wikipedia
+# 
+def load_wikipedia(self):
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
+    text = mypage.get()
+    lines = text.split('* ')[1:]
+    myreplace = {}
+    for l in lines:
+        spl =  l.split(' : ')
+        myreplace[spl[0]] = spl[1].strip()
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
+    text = mypage.get()
+    lines = text.split('* ')[1:]
+    mycorrect = []
+    for l in lines:
+        mycorrect.append( l.strip() )
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
+    text = mypage.get()
+    lines = text.split('* ')[1:]
+    mycount = {}
+    for l in lines:
+        spl =  l.split(':')
+        mycount[spl[0].strip()] = int(spl[1].strip() )
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
+    text = mypage.get()
+    lines = text.split('* ')[1:]
+    myreplacedd = {}
+    for l in lines:
+        spl =  l.split(' : ')
+        myreplacedd[spl[0]] = spl[1].strip()
 
-        self.replace = myreplace
-        self.noall = mycorrect
-        self.rcount = mycount
-        self.replaceDerivatives = myreplacedd
+    self.replace = myreplace
+    self.noall = mycorrect
+    self.rcount = mycount
+    self.replaceDerivatives = myreplacedd
 
-    def store_wikipedia(self):
-        replace = self.replace
-        noall = self.noall
-        rcount = self.rcount
-        replaceDerivatives = self.replaceDerivatives
+def store_wikipedia(self):
+    replace = self.replace
+    noall = self.noall
+    rcount = self.rcount
+    replaceDerivatives = self.replaceDerivatives
 
-        s = ''
-        for k in sorted(replace.keys()):
-            s += '* %s : %s\n' % (k, replace[k])
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
-        mypage.put_async( s )
-        s = ''
-        for k in sorted(noall):
-            s += '* %s \n' % (k)
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
-        mypage.put_async( s )
-        s = ''
-        for k in sorted(rcount.keys()):
-            if rcount[k] > 0: s += '* %s : %s\n' % (k, rcount[k])
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
-        mypage.put_async( s )
-        s = ''
-        for k in sorted(replaceDerivatives.keys()):
-            s += '* %s : %s\n' % (k, replaceDerivatives[k])
-        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
-        mypage.put_async( s )
+    s = ''
+    for k in sorted(replace.keys()):
+        s += '* %s : %s\n' % (k, replace[k])
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
+    mypage.put_async( s )
+    s = ''
+    for k in sorted(noall):
+        s += '* %s \n' % (k)
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
+    mypage.put_async( s )
+    s = ''
+    for k in sorted(rcount.keys()):
+        if rcount[k] > 0: s += '* %s : %s\n' % (k, rcount[k])
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
+    mypage.put_async( s )
+    s = ''
+    for k in sorted(replaceDerivatives.keys()):
+        s += '* %s : %s\n' % (k, replaceDerivatives[k])
+    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
+    mypage.put_async( s )
 
-    
+
