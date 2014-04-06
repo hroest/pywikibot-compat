@@ -21,12 +21,9 @@ import pickle
 import wikipedia as pywikibot
 import pagegenerators, catlib
 
-from spellcheck import SpecialTerm, distance, getalternatives, cap, uncap
-from spellcheck import removeHTML
-
-from spellcheck_hunspell import Word
-from spellcheck_hunspell import abstract_Spellchecker
-from spellcheck_hunspell import CallbackObject
+from SpellcheckLib import Word
+from SpellcheckLib import abstract_Spellchecker
+from SpellcheckLib import CallbackObject
 
 from SpellcheckLib import InteractiveWordReplacer
 from SpellcheckLib import BlacklistSpellchecker
