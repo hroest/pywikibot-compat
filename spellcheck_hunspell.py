@@ -37,11 +37,6 @@ on for example Japanese.
 Command-line options:
 -html          change HTML-entities like &uuml; into their respective letters.
                This is done both before and after the normal check.
--knownonly     only check words that have been marked as a mis-spelling in
-               the spelling list; words that are not on the list are skipped
--knownplus     finds words in the same way as knownonly, but once a word to
-               be changed has been found, also goes through the rest of the
-               page.
 """
 
 """
@@ -57,18 +52,12 @@ sudo apt-get install hunspell-de-ch-frami
 
 """
 #
-# (C) Andre Engels, 2005
-# (C) Pywikipedia bot team, 2006-2011
-#
 # Distributed under the terms of the MIT license.
-#
-__version__ = '$Id$'
 #
 
 import re, sys
 import string, codecs
 import hunspell, webbrowser
-import xmlreader
 import pickle
 import wikipedia as pywikibot
 import pagegenerators
@@ -83,60 +72,54 @@ from spellcheck import edit, endpage
 from SpellcheckLib import abstract_Spellchecker
 from SpellcheckLib import CallbackObject
 
-de_CH_dictionaries = ['/usr/share/hunspell/de_CH.dic', '/usr/share/hunspell/de_CH.aff']
-de_DE_dictionaries = ['/usr/share/hunspell/de_DE.dic', '/usr/share/hunspell/de_DE.aff']
-
 correct_html_codes = False
-newwords = []
-knownonly = False
 
 hunspellEncoding = 'ISO-8859-15'
 
-class Spellchecker(abstract_Spellchecker):
+class HunspellSpellchecker(abstract_Spellchecker):
+    """
+    Spellchecker class that uses hunspell as a backend
+    """
 
-    def __init__(self, hunspell=True, xmldump=None):
-        if xmldump is None:
-            xmldump = 'xmldump/extend/dewiki-latest-pages-articles.xml.bz2'
-        else:
-          self.de_wikidump = xmlreader.XmlDump(xmldump)
-        self.blacklistfile = 'blacklist.dic'
-        self.blacklistencoding = 'utf8'
-        self.ignorefile = 'ignorePages.txt'
-        self.ignorefile_perpage = 'ignorePerPages.txt'
-        self.ignorePages = []
-        self.ignorePerPages = {}
-        self.unknown = []
-        self.unknown_words = []
-        #
-        self.nosugg = []
-        self.encounterOften = []
-        self.replaceBy = {}
-        self.blackdic = {}
-        self.Callbacks = []
-        self.gen = []
-        self.minimal_word_size = 0
-        self.nosuggestions = False
-        if hunspell: self._init_hunspell()
+    def __init__(self, hunspell_dict, minimal_word_size = 3, nosuggestions=False):
 
-    def _init_hunspell(self):
-        self.filename = 'xml_dumps/dewiki-20090512_Rechtschreibung'
+        self.minimal_word_size = minimal_word_size
+        self._nosuggestions = nosuggestions
+        self._wordsWithoutSuggestions = []
+
+        self._unknown = []
+        self._unknown_words = []
+
+        self._encounterOften = []
+        self._replaceBy = {}
+
+        self._init_hunspell(hunspell_dict)
+
+    def _init_hunspell(self, hunspell_dict):
         self.mysite = pywikibot.getSite()
-        self.huns_dede = hunspell.HunSpell(de_DE_dictionaries[0], de_DE_dictionaries[1])
-        self.huns_dech = hunspell.HunSpell(de_CH_dictionaries[0], de_CH_dictionaries[1])
+        self.hunspell = hunspell.HunSpell(hunspell_dict + ".dic", hunspell_dict + ".aff")
+        self.hunspell_alternative = None
+        if hunspell_dict[-2:] == "DE":
+            # Alternative for de is de_ch (swiss spellchecker)
+            hunspell_alt = hunspell_dict[:-2] + "CH"
+            import os.path
+            if os.path.isfile(hunspell_alt + ".dic"):
+                self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
+            else:
+                print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
 
-    # we need to reset the unknown/known number before starting a new cycle!!
     def askUser(self, text, title):
         """Interactive part of the spellcheck() function.
         It uses the unknown words found before to make suggestions:
-            - self.unknown_words
-            - self.nosugg
+            - self._unknown_words
+            - self._wordsWithoutSuggestions
 
         calls askAlternative to figure out what the user wants.
         """
         orig_len = len(text) +1 #plus one because of trailing \np
-        for word in self.unknown_words:
+        for word in self._unknown_words:
             w = word.derive()
-            if w in self.nosugg: pywikibot.output(u"\03{lightred}\"%s\"\03{default}" % w +
+            if w in self._wordsWithoutSuggestions: pywikibot.output(u"\03{lightred}\"%s\"\03{default}" % w +
                 u" skipped because no suggestions were found --> it is " +
                     u"assumed to be a name " );
             else:
@@ -152,7 +135,10 @@ class Spellchecker(abstract_Spellchecker):
                     pywikibot.output(u"\03{lightred}error\03{default}, could" +
                                      "not find \"%s\" anymore" % w)
                     continue
-                replacement = askAlternative(bigword,title=title,replaceBy=self.replaceBy,context=text[max(0,site-55):site+len(w)+55])
+                replacement = askAlternative(bigword,
+                                             title=title,
+                                             replaceBy=self._replaceBy,
+                                             context=text[max(0,site-55):site+len(w)+55])
 
                 if replacement == edit:
                     newtxt = self.saveEditArticle(text, jumpIndex = 0, highlight = w)
@@ -165,11 +151,13 @@ class Spellchecker(abstract_Spellchecker):
                     text = text[:site] + replacement + text[site+LocAdd:]
         return text
 
-    # this tries to edit articles safely
-    # some gothic characters cause problems and raise
-    # a value error which then causes the whole program to
-    # crash -> here we catch those exceptions
     def saveEditArticle(self, text, jumpIndex = 0, highlight = ''):
+        """Edits an article safely.
+
+        Tries to edit articles safely - some gothic characters cause problems
+        and raise a value error which then causes the whole program to crash.
+        Here we catch those exceptions and deal with them.
+        """
         import editarticle
         editor = editarticle.TextEditor()
         try:
@@ -194,36 +182,41 @@ class Spellchecker(abstract_Spellchecker):
         else:
             return text
 
-    def check_with_hunspell(self, word, useCH):
-        return self.huns_dede.spell(word) or \
-                (useCH and self.huns_dech.spell(word)) 
+    def spellcheck(self, text):
+        """Uses hunspell to replace wrongly written words in a given text.
 
-    def spellcheck(self, page, checknames = True, knownonly = False):
-        """Uses hunspell to replace wrongly written words.
+        Returns the corrected text.
         """
-        pageskip = []
-        text = page
+
         if correct_html_codes:
             text = removeHTML(text)
+
         loc = 0
-        old_loc = 0
+
+        # Get ranges
+        ranges = self.forbiddenRanges(text)
+        ranges = sorted(ranges)
+        curr_r = 0
+
+        # Check whether to use alternative spellchecker (e.g. swiss)
         schweiz_search = "<!--schweizbezogen-->"
         match = re.search(schweiz_search, text)
         useCH = False
         if match:
             useCH = True
-        ranges = self.forbiddenRanges(text)
-        ranges = sorted(ranges)
-        curr_r = 0
+
+        # For bookkeeping
         self.time_suggesting = 0
         self.totalWordsChecked = 0
         self.checkWords = 0
         starttime = time.time()
+
+        # Wordsearch using regex
+        wordsearch = re.compile(r'([\s\=\<\>\_]*)([^\s\=\<\>\_/\-]+)')
+
         while True:
 
-            #added / since in german some words are compositions
-            wordsearch = re.compile(r'([\s\=\<\>\_]*)([^\s\=\<\>\_/\-]+)')
-            match = wordsearch.search(text,loc)
+            match = wordsearch.search(text, loc)
             LocAdd = 0
             if not match:
                 # No more words on this page
@@ -231,10 +224,12 @@ class Spellchecker(abstract_Spellchecker):
                 print "Time suggesting %0.4f s" % self.time_suggesting
                 print "Total time %0.4f s" % (time.time() - starttime)
                 print "----------------------"
-                print "Time suggesting of total time %0.4f%% " % (self.time_suggesting *100.0 / (time.time() - starttime) )
+                print "Time suggesting of total time %0.4f%% " % (
+                    self.time_suggesting *100.0 / (time.time() - starttime) )
                 break
 
-            curr_r, loc, in_nontext = self.check_in_ranges(ranges, match.start(), match.end(), curr_r, loc)
+            curr_r, loc, in_nontext = self.check_in_ranges(
+                ranges, match.start(), match.end(), curr_r, loc)
             if in_nontext:
                 continue
 
@@ -259,212 +254,146 @@ class Spellchecker(abstract_Spellchecker):
         # We are done with all words
         if correct_html_codes:
             text = removeHTML(text)
-        pageskip = []
+
         return text
 
     def _spellcheck_word(self, text, smallword, bigword, ww, loc, LocAdd, useCH):
+        """ Spellcheck a single word
+        """
 
-            done = False
-            try:
-                smallword_encoded = smallword.encode(hunspellEncoding)
-            except UnicodeEncodeError: 
-                print "encodeerro: ", smallword
+        done = False
+        try:
+            smallword_encoded = smallword.encode(hunspellEncoding)
+        except UnicodeEncodeError: 
+            print "UnicodeEncodeError: ", smallword
+            return
+
+        smallword_utf8 = smallword.encode('utf8')
+        smallword_utf8_prev = text[loc:loc+1].encode('utf8') + smallword_utf8
+        smallword_utf8_next = smallword_utf8 + text[loc+LocAdd-1:loc+LocAdd].encode('utf8')
+
+        if not smallword == '' and not smallword.isupper() and \
+           not self._check_with_hunspell(smallword_encoded, useCH):
+
+            self.totalWordsChecked += 1
+
+            inWW = ww.find(smallword)
+            if not inWW == 0:
+                smallword_utf8_prev = ww[inWW].encode('utf8') + smallword_utf8
+            if not inWW+len(smallword) >= len(ww):
+                smallword_utf8_next = smallword_utf8 + ww[inWW+len(smallword)].encode('utf8')
+
+            #  If hunspell doesn't know it, doesn't mean it is not correct
+            #  This not only reduces the number of words considered to be
+            #  incorrect but also makes it much faster since the feature
+            #  hunspell.suggest takes most time (~6x speedup).
+
+            #  (a) - Remove words that we found more than once
+            #
+            if smallword in self._unknown or smallword in self._encounterOften:
+                done = True
+
+            #
+            #  (b) - we check whether it is less than n characters long
+            #
+            elif len(smallword) < self.minimal_word_size:
+                done = True
+
+            #
+            #  (c) - we check whether it is at the beginning of a sentence and
+            #  thus should be capitalized
+            #
+            elif loc > 2 and text[loc -2:loc-1] == '.':
+                if self._check_with_hunspell(smallword_utf8[0].lower() + smallword_utf8[1:], useCH):
+                    done = True
+
+            #
+            #  (d) - we check whether it is correct when the previous character
+            #  is taken into account
+            #
+            elif self._check_with_hunspell(smallword_utf8_prev, useCH):
+                done = True
+
+            #
+            #  (e) - we check whether it is correct when the following
+            #  character is taken into account
+            #
+            elif self._check_with_hunspell(smallword_utf8_next, useCH):
+                done = True
+
+            #
+            #  (f) - we check whether it is following an internal link like [[th]]is
+            #
+            elif loc > 2 and text[loc-2:loc] == ']]':
+                done = True
+
+            #
+            #  (g) - we check whether it is a (german) genitive case and
+            #  exist in this form in our whitelist, which is without trailing
+            #  "es" or "s"
+            #
+            elif len(smallword) > 3 and \
+              (smallword[-2:] == 'es' and self._check_with_hunspell(smallword_utf8[:-2], useCH)) or \
+              (smallword[-1:] == 's' and self._check_with_hunspell(smallword_utf8[:-1], useCH)):
+                done = True
+
+            #
+            #  (h) - if we found it more than once, its probably correct
+            #
+            if smallword in self._unknown and not smallword in self._encounterOften:
+                print "Skip word encountered multiple times:", smallword
+                self._encounterOften.append(smallword)
+                self._unknown.remove(smallword)
+
+            # Return here to save some time
+            if done:
                 return
 
-            smallword_utf8 = smallword.encode('utf8')
-            smallword_utf8_prev = text[loc:loc+1].encode('utf8') + smallword_utf8
-            smallword_utf8_next = smallword_utf8 + text[loc+LocAdd-1:loc+LocAdd].encode('utf8')
+            #  now we need to get the suggestions from hunspell. This takes
+            #  nearly all time
+            if True:
+                self.checkWords += 1
+                pywikibot.output(u"%s.\03{lightred}\"%s\"\03{default} -> get Suggestions" % (
+                    self.checkWords, smallword));
+                t1 = time.time()
+                if self._nosuggestions:
+                    sugg = []
+                elif useCH and self.hunspell_alternative is not None:
+                    sugg = self.hunspell_alternative.suggest(smallword_utf8)
+                else:
+                   sugg = self.hunspell.suggest(smallword_utf8)
+                self.time_suggesting += time.time() -t1
 
-            if not smallword == '' and not smallword.isupper() and \
-               not self.check_with_hunspell(smallword_encoded, useCH) and not self.isNewWord(smallword):
+                if not self._nosuggestions \
+                    and len(sugg) == 0 \
+                    and not smallword in self._wordsWithoutSuggestions:
+                    self._wordsWithoutSuggestions.append(smallword)
 
-                self.totalWordsChecked += 1
-
-                inWW = ww.find(smallword)
-                if not inWW == 0:
-                    smallword_utf8_prev = ww[inWW].encode('utf8') + smallword_utf8
-                if not inWW+len(smallword) >= len(ww):
-                    smallword_utf8_next = smallword_utf8 + ww[inWW+len(smallword)].encode('utf8')
-
-                #  If hunspell doesn't know it, doesn't mean it is not correct
-                #  This not only reduces the number of words considered to be
-                #  incorrect but also makes it much faster since the feature
-                #  hunspell.suggest takes most time (~6x speedup).
-                #
-                #  (a) - we check a whitelist with names and places
-                #      - if we encountered it already we can add this one as done
-                #
-                if (Word(smallword).isCorrect(checkalternative = knownonly) or
-                    smallword in self.unknown or smallword in self.encounterOften or
-                    smallword in newwords):
-                    done = True
-                #
-                #  (b.1) - we check whether it is less than 3 characters long
-                #
-                elif len(smallword) < 3:
-                    done = True
-                #
-                #  (b.2) - we check whether it is a (german) genitive case and
-                #  exist in this form in our whitelist, which is without trailing
-                #  "es" or "s"
-                #
-                elif len(smallword) > 3 and ( (smallword[-2:] == 'es' and
-                   Word(smallword[:-2]).isCorrect(checkalternative = knownonly)) or
-                   (smallword[-1:] == 's' and
-                    Word(smallword[:-1]).isCorrect(checkalternative = knownonly))):
-                    done = True
-                #
-                #  (b.3) - we check whether it is a (german) genitive case and
-                #  exist in this form in our whitelist, which is without trailing
-                #  "es" or "s"
-                #
-                elif (len(smallword) > 3 and smallword[-2:] == 'er' and
-                      Word(smallword[:-2]).isCorrect(checkalternative = knownonly)):
-                    done = True
-                #
-                #  (c) - we check whether it is at the beginning of a sentence and
-                #  thus should be capitalized
-                #
-                elif loc > 2 and text[loc -2:loc-1] == '.':
-                    if self.check_with_hunspell(smallword_utf8[0].lower() + smallword_utf8[1:], useCH):
-                        done = True
-                #
-                #  (d) - we check whether it is correct when the previous character
-                #  is taken into account
-                #
-                elif self.check_with_hunspell(smallword_utf8_prev, useCH):
-                        done = True
-                #
-                #  (e) - we check whether it is correct when the following
-                #  character is taken into account
-                #
-                elif self.check_with_hunspell(smallword_utf8_next, useCH):
-                        done = True
-                #
-                #  (f) - we check whether it is following an internal link like [[th]]is
-                #
-                elif loc > 2 and text[loc-2:loc] == ']]':
+                #  go through the suggestions and see whether our word matches
+                #  some derivative.
+                for i in range(len(sugg)):
+                    try:
+                        sugg[i] = unicode(sugg[i], 'utf-8')
+                    except UnicodeDecodeError:
+                        sugg[i] = unicode(sugg[i], 'iso8859-1')
+                    if sugg[i] == smallword:
                         done = True
 
-                elif len(smallword) < self.minimal_word_size:
-                        done = True
-                #
-                #  (x) - if we found it more than once, its probably correct
-                #
-                if smallword in self.unknown and not smallword in self.encounterOften:
-                    print "Skip word encountered multiple times:", smallword
-                    self.encounterOften.append(smallword)
-                    self.unknown.remove(smallword)
+            #######################################################
+            #So now we know whether we have found the word or not #
+            #######################################################
+            if not done:
+                bigword.suggestions = sugg
+                bigword.location = loc
+                self._unknown.append(smallword);
+                self._unknown_words.append(bigword);
 
-                if done:
-                    return
+        return 
 
-                #
-                #  (x) - now we need to get the suggestions from hunspell
-                #      - this takes nearly all time
-                if True:
-                    self.checkWords += 1
-                    pywikibot.output(u"%s.\03{lightred}\"%s\"\03{default} sugg" % (
-                        self.checkWords, smallword));
-                    t1 = time.time()
-                    if self.nosuggestions: sugg = []
-                    elif useCH:
-                        sugg = self.huns_dech.suggest(smallword_utf8)
-                    else:
-                       sugg = self.huns_dede.suggest(smallword_utf8)
-                    self.time_suggesting += time.time() -t1
-
-                    if not self.nosuggestions and len(sugg) == 0 and not smallword in self.nosugg:
-                        self.nosugg.append(smallword)
-                    #
-                    #  (x) - now we go through the suggestions and see whether our
-                    #  word matches some derivative
-                    #
-                    for i in range(len(sugg)):
-                        try:
-                            sugg[i] = unicode(sugg[i], 'utf-8')
-                        except UnicodeDecodeError:
-                            sugg[i] = unicode(sugg[i], 'iso8859-1')
-                        if sugg[i] == smallword:
-                            print("whats wrong here? we found %s %s" % (
-                                sugg[i], smallword) )
-                            done = True
-                        # also if just the first character is different and at the
-                        # beginning of a sentence
-                        """
-                        if (sugg[i][0].upper() + sugg[i][1:]) == smallword:
-                            #If starting a new sentence, it SHOULD be capitalized!
-                            if text[loc -2:loc-1] == '.':
-                                print("222 %s" % text[loc-100:loc+100])
-                                done = True
-                        ###check this
-                        ###
-                        elif sugg[i] == text[loc-1] + smallword:
-                            print("223 %s" % text[loc-100:loc+100])
-                            #probably an instance of -xxxxx
-                            done = True
-                        ##also if the next character should be a point and is
-                        elif sugg[i] == smallword + '.':
-                            print("224 %s" % text[loc-100:loc+100])
-                            done = True
-                        ##also if the next character should be a dash and is
-                        elif sugg[i] == smallword + '-':
-                            print("225 %s" % text[loc-100:loc+100])
-                            done = True
-                        ##also if the previous character should be a dash and is
-                        elif sugg[i] == '-' + smallword:
-                            print("226 %s" % text[loc-100:loc+100])
-                            done = True
-                        """
-
-                #######################################################
-                #So now we know whether we have found the word or not #
-                #######################################################
-                if not done:
-                    bigword.suggestions = sugg
-                    bigword.location = loc
-                    self.unknown.append(smallword);
-                    self.unknown_words.append(bigword);
-            return 
-
-    def save_wordlist(self, filename):
-        if self.rebuild:
-            l_list = self.knownwords.keys()
-            self.l_list.sort()
-            f = codecs.open(filename, 'w', encoding = self.mysite.encoding())
-        else:
-            l_list = self.newwords
-            f = codecs.open(filename, 'a', encoding = self.mysite.encoding())
-
-        if l_list == []: l_list = self.unknown
-        for word in l_list:
-            if self.Word(word).isCorrect():
-                if word != self.uncap(word):
-                    if self.Word(self.uncap(word)).isCorrect():
-                        # Capitalized form of a word that is in the list uncapitalized
-                        continue
-                f.write("1 %s\n"%word)
-            else:
-                f.write("0 %s %s\n"%(word," ".join(self.knownwords[word])))
-
-        f.close()
-
-    def save_one(self, filename, l_list):
-        f = codecs.open(filename, 'a', encoding = mysite.encoding())
-        for word in l_list:
-            f.write("1 %s\n"%word)
-        f.close()
-
-    def save_zero(self, filename, dic):
-        #first comes the wrong entry, then the correct one
-        for wrong,correct in dic.iteritems():
-            f.write("0 %s %s\n"% (wrong , correct) )
-        f.close()
-
-    def isNewWord(self, word):
-        for w in newwords:
-            if w == word: return True
-
+    def _check_with_hunspell(self, word, useAlternative):
+        return self.hunspell.spell(word) or \
+                (useAlternative and self.hunspell_alternative is not None 
+                 and self.hunspell_alternative.spell(word)) 
 
 def show_help():
     thishelp = u"""
@@ -539,24 +468,25 @@ def main():
     newpages = False
     longpages = False
     rebuild = False
-    checknames = True
     category = None
     checklang = None
-
-    sp = Spellchecker()
-    print "got Spellchecker"
+    dictionary = None
+    nosuggestions = False
 
     for arg in pywikibot.handleArgs():
         if arg.startswith("-start:"):
             start = arg[7:]
         elif arg.startswith("-cat:"):
             category = arg[5:]
+        elif arg.startswith("-dictionary:"):
+            dictionary = arg[12:]
+            print "get ditct:", dictionary
         elif arg.startswith("-newpages"):
             newpages = True
         elif arg.startswith("-longpages"):
             longpages = True
         elif arg.startswith("-nosugg"):
-            sp.nosuggestions = True
+            nosuggestions = True
         elif arg.startswith("-html"):
             correct_html_codes = True
         elif arg.startswith('-h') or arg.startswith('--help'):
@@ -565,12 +495,17 @@ def main():
             return
         else:
             title.append(arg)
+            print "title", arg
 
         # This is a purely interactive bot, we therefore do not want to put-throttle
         pywikibot.put_throttle.setDelay(1)
 
+    sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions)
+    sp.nosuggestions = nosuggestions
+
     if start:
-        gen = pagegenerators.PreloadingGenerator(pagegenerators.AllpagesPageGenerator(start=start,includeredirects=False))
+        gen = pagegenerators.PreloadingGenerator(
+            pagegenerators.AllpagesPageGenerator(start=start,includeredirects=False))
     elif newpages:
         def wrapper_gen():
             for (page, length) in pywikibot.getSite().newpages(500):
