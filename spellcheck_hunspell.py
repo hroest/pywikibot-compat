@@ -35,7 +35,7 @@ It is therefore expected to work on for example Russian and Korean, but not
 on for example Japanese.
 
 Command-line options:
--html           change HTML-entities like &uuml; into their respective letters.
+-html          change HTML-entities like &uuml; into their respective letters.
                This is done both before and after the normal check.
 -knownonly     only check words that have been marked as a mis-spelling in
                the spelling list; words that are not on the list are skipped
