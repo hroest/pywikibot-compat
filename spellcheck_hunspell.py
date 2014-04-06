@@ -15,6 +15,9 @@ spellcheck.py -newpages
 spellcheck.py -longpages
     Go through the pages on [[Special:Longpages]]
 
+Note that for each call, you should provide the location of the hunspell
+dictionary through -dictionary: (for example: -dictionary:/usr/share/hunspell/de_DE).
+
 For each unknown word, you get a couple of options:
     numbered options: replace by known alternatives
     a: This word is correct; add it to the list of known words
