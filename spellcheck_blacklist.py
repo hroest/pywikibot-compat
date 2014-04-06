@@ -32,7 +32,7 @@ from SpellcheckLib import collectBlacklistPages
 
 correct_html_codes = False
 
-def readBlacklist(filename, blackdic, encoding="utf8"):
+def readBlacklist(filename, badDict, encoding="utf8"):
     f = codecs.open(filename, 'r', encoding = encoding)
     for line in f.readlines():
         # remove trailing newlines and carriage returns
@@ -44,15 +44,15 @@ def readBlacklist(filename, blackdic, encoding="utf8"):
         #skip empty lines
         if line != '':
             line = line.split(';')
-            blackdic[ line[0].lower() ] = line[1]
+            badDict[ line[0].lower() ] = line[1]
 
-def writeBlacklist(filename, encoding, blackdic):
+def writeBlacklist(filename, encoding, badDict):
     f = codecs.open(filename, 'w', encoding = encoding)
-    for key in sorted(blackdic.keys()):
-        f.write('%s;%s\n' % (key, blackdic[key]))
+    for key in sorted(badDict.keys()):
+        f.write('%s;%s\n' % (key, badDict[key]))
     f.close()
 
-class Spellchecker(abstract_Spellchecker):
+class _old_Spellchecker(abstract_Spellchecker):
     """ Blacklist based spellchecker
 
     This spellchecker reads in a "blacklist" of words that are commonly spelled
@@ -60,25 +60,20 @@ class Spellchecker(abstract_Spellchecker):
     """
 
     def __init__(self, xmldump=None):
-        if xmldump is None:
-            xmldump = 'xmldump/extend/dewiki-latest-pages-articles.xml.bz2'
-        else:
-          self.de_wikidump = xmlreader.XmlDump(xmldump)
+        if xmldump is not None:
+          self.wikidump = xmlreader.XmlDump(xmldump)
+
         self.blacklistfile = 'blacklist.dic'
         self.blacklistencoding = 'utf8'
+
         self.ignorefile = 'ignorePages.txt'
         self.ignorefile_perpage = 'ignorePerPages.txt'
         self.ignorePages = []
         self.ignorePerPages = {}
         self.unknown = []
 
-        self.nosugg = []
-        self.encounterOften = []
-        self.suggestions_dic = {}
-        self.replaceBy = {}
-        self.blackdic = {}
+        self.badDict = {}
         self.Callbacks = []
-        self.gen = []
 
     def writeIgnoreFile(self):
         """
@@ -118,13 +113,13 @@ class Spellchecker(abstract_Spellchecker):
     # Call this function to work on an XML file
     def workonBlackXML(self, breakUntil = '', batchNr = 3000, doNoninteractive=False):
         import pickle
-        readBlacklist(self.blacklistfile, self.blackdic, encoding = self.blacklistencoding)
+        readBlacklist(self.blacklistfile, self.badDict, encoding = self.blacklistencoding)
         self.readIgnoreFile(self.ignorefile, self.blacklistencoding, self.ignorePages)
         f = open( self.ignorefile_perpage); self.ignorePerPages = pickle.load(f)
 
         wr = InteractiveWordReplacer()
 
-        generator = append(self.de_wikidump.parse())
+        generator = append(self.wikidump.parse())
 
         print("Blacklist successfully loaded")
 
@@ -143,7 +138,7 @@ class Spellchecker(abstract_Spellchecker):
             nrpages = 10000
             #here we all of them, loop until the pages done is not 10k any more
             while nrpages == 10000:
-                res, nrpages = collectBlacklistPages(nrpages, generator, self.blackdic)
+                res, nrpages = collectBlacklistPages(nrpages, generator, self.badDict)
             import pickle
             f = open( 'spellcheck_whole.dump', 'w')
             pickle.dump(res, f)
@@ -157,7 +152,7 @@ class Spellchecker(abstract_Spellchecker):
         # - process a batch of pages
         # - work on them interactively
         while True:
-            wrongWords, nrpages = collectBlacklistPages(batchNr, generator, self.blackdic)
+            wrongWords, nrpages = collectBlacklistPages(batchNr, generator, self.badDict)
 
             print('Found %s wrong words.' % len(wrongWords))
             wr.processWrongWordsInteractively( wrongWords )
@@ -203,7 +198,7 @@ class Spellchecker(abstract_Spellchecker):
         word_wrong, word_correct, version_used """
         for page in gen:
             if not page.namespace == '0': continue
-            ww = BlacklistSpellchecker().spellcheck_blacklist( page.text, self.blackdic)
+            ww = BlacklistSpellchecker().spellcheck_blacklist( page.text, self.badDict)
             self.prepare = []
             for w in ww:
                 self.prepare.append([page.title.encode(encoding), page.id , w[2],
@@ -278,7 +273,7 @@ class Spellchecker(abstract_Spellchecker):
         start = time.time()
         for page in gen:
             if not page.namespace == '0': continue
-            ww = BlacklistSpellchecker().spellcheck_blacklist( page.text, self.blackdic)
+            ww = BlacklistSpellchecker().spellcheck_blacklist( page.text, self.badDict)
             if not len(ww) == 0: wrongWords.append([page, ww])
             if i % 10000 == 0:
                 print i
@@ -286,13 +281,6 @@ class Spellchecker(abstract_Spellchecker):
                 print "%.2f m = %s s" % ( (end- start) /(60.0) ,end- start   )
             i += 1
         return wrongWords, i
-
-def run_bot(allPages, sp):
-    start = time.time()
-    collectedPages, nrpages = collectBlacklistPages(-1, allPages, sp.blackdic)
-    print "==================================="
-    print "Processing %s pages took %0.4fs" % (len(collectedPages), time.time() - start)
-    InteractiveWordReplacer().processWrongWordsInteractively(collectedPages)
 
 def show_help():
     thishelp = u"""
@@ -322,8 +310,6 @@ def main():
     category = None
     checklang = None
     blacklistfile = None
-
-    sp = BlacklistSpellchecker()
 
     for arg in pywikibot.handleArgs():
         if arg.startswith("-start:"):
@@ -373,13 +359,18 @@ def main():
         show_help()
         return
 
-    if blacklistfile:
-        sp.blacklistfile = blacklistfile
+    if not blacklistfile:
+        raise Exception("No blacklist file provided, please provide one with -blacklist:")
 
-    print "Using blacklistfile: %s" % (sp.blacklistfile)
-    sp.blackdic = {}
-    readBlacklist(sp.blacklistfile, sp.blackdic)
-    run_bot(gen, sp)
+    print "Using blacklistfile: %s" % (blacklistfile)
+    badDict = {}
+    readBlacklist(blacklistfile, badDict)
+
+    start = time.time()
+    collectedPages, nrpages = collectBlacklistPages(-1, gen, badDict)
+    print "==================================="
+    print "Processing %s pages took %0.4fs" % (len(collectedPages), time.time() - start)
+    InteractiveWordReplacer().processWrongWordsInteractively(collectedPages)
 
 if __name__ == "__main__":
     try:
