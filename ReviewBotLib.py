@@ -6,7 +6,7 @@ from xml.dom import minidom   #XML Parsing for API
 import codecs
 from datetime import datetime
 
-def getReviewedPages(user_name, site = pywikibot.getSite() ):
+def getReviewedPages(user_name, site = pywikibot.getSite(), maxiter=1000):
     """Use API to get all reviewed pages for a user"""
     #http://de.wikipedia.org/w/api.php?action=query&list=logevents&lelimit=max&leuser=Firefox13&letype=review&format=xml
     #http://de.wikipedia.org/wiki/Spezial:Linkliste/Benutzer:Hannes_R%C3%B6st/Vorlage/Sichter
@@ -24,19 +24,25 @@ def getReviewedPages(user_name, site = pywikibot.getSite() ):
     #address = wikipedia.getSite().protocol() + '://'
     #address += wikipedia.getSite().hostname()
     address = site.family.api_address( site.lang )
-    #
+
+    i = 0
     while True:
-        #print('iteration %s' % nextStart)
+        i += 1
+
         predata['lestart'] = nextStart
         response, data = site.postForm(address, predata=predata)
         dom = minidom.parseString(data.encode('utf8'))
         items = dom.getElementsByTagName('item')
+
         for node in items:
             thisAction = node.getAttribute('action')
-            #es existieren: approve         Nachsichten
+            # The following responses are possible:
+            #
+            #               approve         Nachsichten
             #               approve-a       Automatisch
             #               approve-i       Initial
             #               approve-ia      Initial & Automatisch (neu erstellt)
+            #
             if thisAction == 'approve':
                 revisions = node.getElementsByTagName('param')
                 thisLogID = node.getAttribute('logid')
@@ -45,10 +51,22 @@ def getReviewedPages(user_name, site = pywikibot.getSite() ):
                 #firstchild = old revision
                 #secondchild = previous (not reviewed) revision
                 reviewedPages.append([thisPageID, thisLogID, revisions[0].firstChild.data, thisTimestamp])
+
+        # Check whether there are more pages to be retrieved (if not, break)
         cont = dom.getElementsByTagName('query-continue')
         if not len(cont) == 0:
-            nextStart = cont[0].getElementsByTagName('logevents')[0].getAttribute('lestart');
-        else: break
+            if cont[0].getElementsByTagName('logevents')[0].hasAttribute('lestart'):
+                nextStart = cont[0].getElementsByTagName('logevents')[0].getAttribute('lestart');
+            elif cont[0].getElementsByTagName('logevents')[0].hasAttribute('lecontinue'):
+                nextStart = cont[0].getElementsByTagName('logevents')[0].getAttribute('lecontinue');
+            else:
+                raise Exception("Neither lestart nor lecontinue found.")
+        else: 
+            break
+
+        if i > maxiter:
+            raise Exception("More than 1000 iterations, something is wrong.")
+
     return reviewedPages
 
 def postReviewedPagesandTable( user_name, site = pywikibot.getSite() ):
