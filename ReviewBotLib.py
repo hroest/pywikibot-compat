@@ -21,7 +21,7 @@ def getReviewedPages(user_name, site = pywikibot.getSite(), maxiter=1000):
                 'list'          :  'logevents',
                 'lelimit'       :  '500',
                 'leuser'        :  user_name,
-                'letype'        :  'review',
+                'leaction'      :  'review/approve',
     }
     address = site.family.api_address( site.lang )
 
