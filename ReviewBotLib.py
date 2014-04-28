@@ -8,11 +8,13 @@ from datetime import datetime
 
 def getReviewedPages(user_name, site = pywikibot.getSite(), maxiter=1000):
     """Use API to get all reviewed pages for a user"""
+
     #http://de.wikipedia.org/w/api.php?action=query&list=logevents&lelimit=max&leuser=Firefox13&letype=review&format=xml
     #http://de.wikipedia.org/wiki/Spezial:Linkliste/Benutzer:Hannes_R%C3%B6st/Vorlage/Sichter
+
     nextStart = ''
     reviewedPages = []
-    #
+    
     predata = {
                 'action'        : 'query',
                 'format'        : 'xml',
@@ -21,15 +23,21 @@ def getReviewedPages(user_name, site = pywikibot.getSite(), maxiter=1000):
                 'leuser'        :  user_name,
                 'letype'        :  'review',
     }
-    #address = wikipedia.getSite().protocol() + '://'
-    #address += wikipedia.getSite().hostname()
     address = site.family.api_address( site.lang )
 
     i = 0
+    api_version = "pre-1.23wmf23"
     while True:
         i += 1
+        # print ("%s iteration: %s" % (i, nextStart))
 
-        predata['lestart'] = nextStart
+        # Set starting point for next iteration (more pages may be available)
+        if api_version == "pre-1.23wmf23":
+            predata['lestart'] = nextStart # old API
+        elif api_version == "post-1.23wmf23":
+            predata['lecontinue'] = nextStart
+
+        # Send request, get answer and iterate over answer
         response, data = site.postForm(address, predata=predata)
         dom = minidom.parseString(data.encode('utf8'))
         items = dom.getElementsByTagName('item')
@@ -58,6 +66,7 @@ def getReviewedPages(user_name, site = pywikibot.getSite(), maxiter=1000):
             if cont[0].getElementsByTagName('logevents')[0].hasAttribute('lestart'):
                 nextStart = cont[0].getElementsByTagName('logevents')[0].getAttribute('lestart');
             elif cont[0].getElementsByTagName('logevents')[0].hasAttribute('lecontinue'):
+                api_version = "post-1.23wmf23"
                 nextStart = cont[0].getElementsByTagName('logevents')[0].getAttribute('lecontinue');
             else:
                 raise Exception("Neither lestart nor lecontinue found.")
