@@ -5,7 +5,7 @@
 """
 
 import wikipedia as pywikibot
-from spellcheck_wordlist import BlacklistSpellchecker
+from SpellcheckLib import BlacklistSpellchecker
 import textrange_parser 
 
 import unittest
@@ -310,7 +310,6 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
         assert len(self.sp.spellcheck_blacklist(text, {u'Repertoir' : 'wrong'})) == 0
 
     def test_spellcheck_blacklist_slow(self):
-        return
 
         mypage = pywikibot.Page(pywikibot.getSite(), 'Unterschrift')
         text = mypage.getOldVersion(128568384)

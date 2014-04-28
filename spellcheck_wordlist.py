@@ -305,6 +305,7 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
     def collectBlacklistPagesXML(batchNr, gen, badDict):
         """Collect all wrong words in the provided page generator.
         """
+        from SpellcheckLib import BlacklistSpellchecker
         wrongWords = []
         seenAlready = {}
         i = 0
