@@ -164,18 +164,27 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
 
         # Nested
         text = "{{test template }} TEXT {{test2 template param1 = {{template 3 param_internal = some }} | param2 = other }} MORE TEXT"
-        res = self.sp.forbiddenRanges(text)
+        res = self.sp.forbiddenRanges(text, removeNested=False)
         assert len(res) == 3
         assert res[0] == [0,18]
         assert res[1] == [50,87]
         assert res[2] == [24,107]
         assert text[18:24] + text[107:] == " TEXT  MORE TEXT"
+        #
+        res = self.sp.forbiddenRanges(text, removeNested=True)
+        assert len(res) == 2
+        assert res[0] == [0,18]
+        assert res[1] == [24,107]
 
         # Nested
         text = "{{test template }} TEXT {{test2 param1 = [[test|test2]] }} MORE TEXT \"some quoted\" TEXT <!-- some comment --> FINAL"
-        res = self.sp.forbiddenRanges(text)
+        res = self.sp.forbiddenRanges(text, removeNested=False)
         assert len(res) == 5
         assert res == [[0, 18], [24, 58], [41, 55], [69, 82], [88, 109]]
+        #
+        res = self.sp.forbiddenRanges(text)
+        assert len(res) == 4
+        assert res == [[0, 18], [24, 58], [69, 82], [88, 109]]
 
     def test_spellcheck_blacklist_1(self):
 
