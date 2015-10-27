@@ -302,6 +302,34 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
     wr = InteractiveWordReplacer()
     generator = xmlreader.XmlDump(xmlfile).parse()
 
+    correctWords_page = 'Benutzer:HRoestTypo/Tippfehler/all/correctWords'
+    ignorePages_page = 'Benutzer:HRoestTypo/Tippfehler/all/ignorePages'
+
+    if True:
+        print "Load pages with correct words ... "
+
+        # Load correct words
+        mypage = pywikibot.Page(pywikibot.getSite(), correctWords_page)
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        correctWords = {}
+        for l in lines:
+            spl =  l.split(' : ')
+            tmp = correctWords.get( spl[0], [] )
+            tmp.append( spl[1].strip() )
+            correctWords[spl[0]] = tmp
+
+        # Load ignore pages
+        mypage = pywikibot.Page(pywikibot.getSite(), ignorePages_page)
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        ignorePages = []
+        for l in lines:
+            ignorePages.append(l.strip())
+
+        wr.ignorePages = ignorePages
+        wr.ignorePerPages = correctWords
+
     def collectBlacklistPagesXML(batchNr, gen, badDict):
         """Collect all wrong words in the provided page generator.
         """
@@ -363,9 +391,31 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
         wr.processWrongWordsInteractively( res )
 
         choice = pywikibot.inputChoice('Load next batch?',
-               ['Yes', 'yes', 'No'], ['y', '\\', 'n'])
+               ['Yes', 'yes', 'No', 'Save choices'], ['y', '\\', 'n', 's'])
+
+        if choice == 'n' or choice == 's': 
+
+            # Save correct words
+            output = ""
+            for k in sorted(wr.ignorePerPages):
+                vlist = wr.ignorePerPages[k]
+                for v in sorted(vlist):
+                    output += "* %s : %s\n" % (k, v)
+
+            mypage = pywikibot.Page(pywikibot.getSite(), correctWords_page)
+            mypage.put(output,  u'Update' )
+
+            output = ""
+            for k in sorted(wr.ignorePages):
+                output += "* %s \n" % (k.strip())
+
+            # Save ignore pages
+            mypage = pywikibot.Page(pywikibot.getSite(), ignorePages_page)
+            mypage.put(output,  u'Update' )
+
         if choice == 'n': 
             break
+
 
     errors = False
     doneSaving = True
