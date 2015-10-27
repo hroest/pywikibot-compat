@@ -33,7 +33,7 @@ Example usage:
 
 import wikipedia as pywikibot
 import pagegenerators, catlib
-import re
+import re, string, sys
 
 from SpellcheckLib import Word, WrongWord
 from SpellcheckLib import readBlacklist
@@ -192,7 +192,6 @@ class BlacklistSpellchecker(abstract_Spellchecker):
 
     def spellcheck_blacklist_regex(self, text, badDict, return_for_db=False, return_words=False):
 
-        import re
         ranges = self.forbiddenRanges(text)
         ranges = sorted(ranges)
         wrongWords = []
@@ -226,6 +225,11 @@ class BlacklistSpellchecker(abstract_Spellchecker):
         """ Replaces the word by a simple string operation
         wrong word and go through them one by one.
         """
+
+        # Ensure that empty words do not trigger an exception
+        if len(wrong) == 0 or len(correct) == 0: 
+            return
+
         for page in gen:
 
             try:
