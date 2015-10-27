@@ -87,9 +87,9 @@ def getTestCaseKarel2():
     """
 
     return u"""
-        * 1964 ''Kleine Vlaamse Suite''
-        *# Heroisch Visioen
-        *# Rustige Zomeravond
+        1964 ''Kleine Vlaamse Suite''
+        Heroisch Visioen
+        Rustige Zomeravond
         """
 
 def getTestCaseKarel3():
@@ -100,8 +100,21 @@ def getTestCaseKarel3():
     """
 
     return u"""
+        1964 ''Kleine Vlaamse Suite''
+        Heroisch Visioen<!-- sic! -->
+        Rustige Zomeravond
+        """
+
+def getTestCaseKarel4():
+    """ This test checks that specifically wrongly spelled names are not corrected
+
+    mypage = pywikibot.Page(pywikibot.getSite(), 'Karel De Schrijver')
+    text = mypage.getOldVersion(55865499)
+    """
+
+    return u"""
         * 1964 ''Kleine Vlaamse Suite''
-        *# Heroisch Visioen<!-- sic! -->
+        *# Heroisch Visioen
         *# Rustige Zomeravond
         """
 
@@ -230,15 +243,18 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
         # There should be one results when not protected
         result = sp.spellcheck_blacklist(getTestCaseKarel2(), {'visioen' : 'wrong'})
         assert len(result) == 1
-        assert result[0][2] == 61
-        assert getTestCaseKarel2()[61:61+7] == "Visioen"
+        assert result[0][2] == 56
+        assert getTestCaseKarel2()[56:56+7] == "Visioen"
 
         # There should be zero results when protected by <!-- sic --> 
         result = sp.spellcheck_blacklist(getTestCaseKarel3(), {'visioen' : 'wrong'})
         assert len(result) == 0
 
-    def test_spellcheck_blacklist_detail(self):
+        # There should be zero results when in a list
+        result = sp.spellcheck_blacklist(getTestCaseKarel4(), {'visioen' : 'wrong'})
+        assert len(result) == 0
 
+    def test_spellcheck_blacklist_detail(self):
         text = u"testtext with mistake&nbsp;and more words"
         assert len(self.sp.spellcheck_blacklist(text, {'mistake' : 'wrong'})) == 1
         assert len(self.sp.spellcheck_blacklist(text, {'more' : 'wrong'})) == 1
