@@ -13,9 +13,11 @@ python spellcheck_wordlist.py -xmlfile:/path/to/wiki-latest-pages-articles.xml
 python spellcheck_wordlist.py -searchWiki
     Checks all pages containing the wrong word (using the websearch functionality) 
 
-Wordlists can be provided in one of two formats (note: all words need to be in lowercase):
+Wordlists can be provided in one of following formats (note: all words need to be in lowercase):
+
 -blacklist:        Provide a file that contains a list of wrong words (provide the wrong and the correct word per line separated by semicolon ";")
 -singleword:       To search and replace a single word use "wrongword;correctword"
+-blacklistpage:    Link to a specific page where the words are listed using "*" and separated by ":"
 
 Command-line options:
 -batchNr:          Size of batches for the XML file processing
@@ -25,6 +27,11 @@ Example usage:
     spellcheck_wordlist.py -searchWiki -singleword:"Dölli;test"
     spellcheck_wordlist.py Uttwil -singleword:"goldschmied;test"
     spellcheck_wordlist.py -xmlfile:/media/data/tmp/wiki/dewiki-latest-pages-articles.xml.bz2 -singleword:"und;test" -batchNr:10
+
+    spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replacedDerivatives -cat:Schweiz
+    spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replacedDerivatives -searchWiki
+
+
 """
 
 #
