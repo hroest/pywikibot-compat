@@ -150,7 +150,7 @@ class abstract_Spellchecker(object):
         # Check if the current match is contained in the next range 
         if curr_r < len(ranges) and \
           ( (ranges[curr_r][0] <= wordMiddle and ranges[curr_r][1] > wordMiddle) or \
-          (ranges[curr_r][0] <= loc and ranges[curr_r][1] > loc) ):
+            (ranges[curr_r][0] <= loc and ranges[curr_r][1] > loc) ):
 
             # Update the current location to the end of the range
             loc = ranges[curr_r][1]
@@ -170,6 +170,15 @@ class abstract_Spellchecker(object):
         # Check if current range needs to be advanced
         while curr_r < len(ranges) and ranges[curr_r][0] < loc:
             curr_r += 1
+
+            # Advance location if necessary
+            if curr_r < len(ranges) and \
+              ( (ranges[curr_r][0] <= wordMiddle and ranges[curr_r][1] > wordMiddle) or \
+                (ranges[curr_r][0] <= loc and ranges[curr_r][1] > loc) ):
+
+                # Update the current location to the end of the range
+                loc = ranges[curr_r][1]
+
 
         # Else, return the input parameters and 
         return curr_r, loc, False
