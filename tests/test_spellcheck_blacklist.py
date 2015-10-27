@@ -269,10 +269,6 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
         result = sp.spellcheck_blacklist(getTestCaseKarel3(), {'visioen' : 'wrong'})
         assert len(result) == 0
 
-        # There should be zero results when in a list
-        result = sp.spellcheck_blacklist(getTestCaseKarel4(), {'visioen' : 'wrong'})
-        assert len(result) == 0
-
     def test_spellcheck_blacklist_5(self):
 
         sp = self.sp
