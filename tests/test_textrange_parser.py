@@ -115,6 +115,27 @@ class TextrangeeParserTestCase(unittest.TestCase):
         computed = regularTag_range(sample)
         self.assertEqual(expected, computed)
 
+    def test_list_ranges(self):
+        sample = testSamples.test_sample1
+        expected = [ [629, 686] ]
+        computed = list_ranges(sample)
+        self.assertEqual(expected, computed)
+
+        text = u"""
+        Here is some other text
+         ; which is in 
+         ; a list
+        and then not
+          ## but then again
+          *and again
+        but finally not
+         : and some indent
+        """
+
+        expected = [[33, 57], [57, 75], [96, 124], [124, 145]]
+        computed = list_ranges(text)
+        self.assertEqual(expected, computed)
+
     def test_picture_range(self):
         sample = testSamples.test_sample1
         expected = [[122, 160], [200, 248]]

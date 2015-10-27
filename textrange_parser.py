@@ -211,6 +211,20 @@ def sic_comment_range(text, around=50):
         if subtext.find('sic') != -1: ranges.append( [r[0]-around, r[1]+around] )
     return ranges
 
+def list_ranges(text):
+    """Returns the ranges of a lists, e.g. starting with *.
+    
+    """
+    ranges = []
+    for line in text.splitlines(True):
+        if \
+           line.strip().startswith("*") or \
+           line.strip().startswith("#") or \
+           line.strip().startswith(":") or \
+           line.strip().startswith(";"):
+            ranges.append( [text.find(line), text.find(line) + len(line)] )
+    return ranges
+
 def regularTag_range(text, tags=['nowiki', 'math', 'pre', 'gallery', 'source', 'blockquote', 'code', 'sub', 'imagemap', 'poem']):
     """Returns the ranges of a some common tags.
     
