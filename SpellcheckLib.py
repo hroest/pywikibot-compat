@@ -91,6 +91,8 @@ class abstract_Spellchecker(object):
         ran.extend( textrange_parser.regularTag_range(text) )     #all tags specified
         ran.extend( textrange_parser.sic_comment_range(text) )    #<!--sic-->
 
+        ran.extend( textrange_parser.list_ranges(text) )          # lists
+
         # Remove trailing text at the end (references, weblinks etc)
         mm = re.search("==\s*Weblinks\s*==", text)
         if mm: ran.append( [mm.start(), len(text)] )
