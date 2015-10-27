@@ -13,6 +13,7 @@ import re, string
 import wikipedia as pywikibot
 import pagegenerators
 import textrange_parser
+import codecs
 
 from spellcheck import Word
 
