@@ -52,7 +52,7 @@ class abstract_Spellchecker(object):
     Base class for various spellcheckers
     """
 
-    def forbiddenRanges(self, text):
+    def forbiddenRanges(self, text, removeNested=True):
         """ Identify ranges where we do not want to spellcheck.
 
         These ranges include templates, wiki links, tables etc
@@ -106,7 +106,26 @@ class abstract_Spellchecker(object):
         mm = re.search("\[\[Kategorie:", text)
         if mm: ran.append( [mm.start(), len(text)] )
 
-        return ran
+
+        if removeNested:
+            return self.remove_nested_ranges(ran)
+        else:
+            return ran
+
+    def remove_nested_ranges(self, ran):
+
+        def range_is_subset(ranges, r):
+            for riter in ranges:
+                if r[0] > riter[0] and r[1] < riter[1]:
+                    return True
+            return False
+
+        ranges = []
+        for r in sorted(ran):
+            if not range_is_subset(ranges, r):
+                ranges.append(r)
+
+        return ranges
 
     def check_in_ranges(self, ranges, wordStart, wordEnd, curr_r, loc):
         """ Check for the next skippable range and move loc across it.
