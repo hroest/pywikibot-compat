@@ -59,22 +59,28 @@ class abstract_Spellchecker(object):
         """
 
         ran = []
-        albr = ['</ref', '\n'] # alternative breaks
-        extrabr = ['"', "'"] # extra breaks
+        albr = ['</ref', '\n', '}}'] # alternative breaks
+        extrabr = ['"', "'", u'\u201d', u'\u201c'] # extra breaks
 
         ran.extend(findRange('{{', '}}', text)[0] )      #templates
         ran.extend(findRange('[[', ']]', text)[0] )      #wiki links
 
         ran.extend(findRange(u'{|', u'|}', text)[0] )    #tables
 
+        # Quotation marks
+        # See https://de.wikipedia.org/wiki/Anf%C3%BChrungszeichen#Kodierung
+
+        # Simple quotation marks
         ran.extend(findRange('\"', '\"', text,
-            alternativeBreak = albr + extrabr)[0] )      #citations
+            alternativeBreak = albr + extrabr)[0] )
 
+        # French quotation marks
         ran.extend(findRange(u'«', u'»', text,
-            alternativeBreak = albr)[0] )                #citations
+            alternativeBreak = albr)[0] )
 
-        ran.extend(findRange(u'„', u'“', text,
-            alternativeBreak = albr + extrabr)[0] )      #citations
+        # Double quotation marks German: „“ ->  \u201e and \u201c
+        ran.extend(findRange(u'\u201e', u'\u201c', text,
+            alternativeBreak = albr + extrabr)[0] )
 
         ran.extend(findRange('\'\'', '\'\'', text,
             alternativeBreak = albr)[0] )                #italic
