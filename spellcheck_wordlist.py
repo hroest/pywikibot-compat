@@ -379,6 +379,7 @@ def main():
     searchWiki = False
     singleWord = None
     blacklistfile = None
+    blacklistpage = None
     category = None
     xmlfile = None
     title = []
@@ -387,6 +388,9 @@ def main():
     for arg in pywikibot.handleArgs():
         if arg.startswith("-blacklist:"):
             blacklistfile = arg[11:]
+            print "blacklist here", blacklistfile 
+        elif arg.startswith("-blacklistpage:"):
+            blacklistpage = arg[15:]
         elif arg.startswith("-singleword:"):
             singleWord = arg[12:]
         elif arg.startswith("-searchWiki"):
@@ -407,12 +411,25 @@ def main():
     pywikibot.put_throttle.setDelay(1)
 
     # Load wordlist
+    #  -> this is non-exclusive, e.g. combinations of lists are possible ... 
     wordlist = {}
-    if blacklistfile:
-        readBlacklist(blacklistfile, wordlist)
-    elif singleWord:
+
+    if singleWord:
         spl = singleWord.split(";")
         wordlist = dict([  [spl[0].strip(), spl[1].strip()]  ])
+
+    if blacklistfile:
+        readBlacklist(blacklistfile, wordlist)
+
+    if blacklistpage:
+        mypage = pywikibot.Page(pywikibot.getSite(), blacklistpage)
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        for l in lines:
+            spl =  l.split(' : ')
+            wordlist[spl[0].lower()] = spl[1].strip().lower()
+
+    print "Loaded wordlist of size", len(wordlist)
 
     # Initiate checker
     blacklistChecker = BlacklistSpellchecker()
