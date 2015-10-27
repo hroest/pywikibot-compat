@@ -5,7 +5,7 @@
 """
 
 import wikipedia as pywikibot
-from SpellcheckLib import BlacklistSpellchecker
+from spellcheck_wordlist import BlacklistSpellchecker
 import textrange_parser 
 
 import unittest
