@@ -116,7 +116,7 @@ class abstract_Spellchecker(object):
 
         def range_is_subset(ranges, r):
             for riter in ranges:
-                if r[0] > riter[0] and r[1] < riter[1]:
+                if r[0] >= riter[0] and r[1] <= riter[1]:
                     return True
             return False
 
