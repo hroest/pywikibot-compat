@@ -451,6 +451,8 @@ def main():
             title = ""
 
         processXMLWordlist(xmlfile, wordlist, breakUntil = title, batchNr=batchNr)
+        return
+
     elif category:
         print "using cat", category
         cat = catlib.Category(pywikibot.getSite(), category)
