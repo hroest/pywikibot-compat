@@ -277,11 +277,16 @@ class InteractiveWordReplacer(abstract_Spellchecker):
 
             # Evaluate user choice
             if choice == 'b':
+                continue
+            if choice == 'n': 
+                dontReplace.append(w.word) 
                 if self.ignorePerPages.has_key( title ):
                     self.ignorePerPages[title].append( smallword)
                 else: self.ignorePerPages[ title ] = [ smallword ]
-            if choice == 'n': dontReplace.append(w.word); continue
-            if choice == 'x': self.ignorePages.append( title ); return dontReplace
+                continue
+            if choice == 'x': 
+                self.ignorePages.append( title );
+                return dontReplace
             if choice == 'r':
                 w.replacement = pywikibot.input(u"What should I replace \"%s\" by?"
                                               % bigword.word)
