@@ -132,7 +132,7 @@ class TextrangeeParserTestCase(unittest.TestCase):
          : and some indent
         """
 
-        expected = [[33, 57], [57, 75], [96, 124], [124, 145]]
+        expected = [[33, 57], [57, 75], [96, 124], [124, 145], [169, 196]]
         computed = list_ranges(text)
         self.assertEqual(expected, computed)
 

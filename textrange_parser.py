@@ -222,7 +222,7 @@ def list_ranges(text):
            line.strip().startswith("#") or \
            line.strip().startswith(":") or \
            line.strip().startswith(";"):
-            ranges.append( [text.find(line), text.find(line) + len(line)] )
+             ranges.append( [text.find(line), text.find(line) + len(line)] )
     return ranges
 
 def regularTag_range(text, tags=['nowiki', 'math', 'pre', 'gallery', 'source', 'blockquote', 'code', 'sub', 'imagemap', 'poem']):
