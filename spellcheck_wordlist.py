@@ -241,10 +241,14 @@ class BlacklistSpellchecker(abstract_Spellchecker):
                 pywikibot.output(u"%s is a redirect, skip!" % page.title())
                 continue
 
+            # First, check whether word is present (allows early exit)
+            wrongwords = self.spellcheck_blacklist(text, {wrong : correct}, return_words=True)
+            if len(wrongwords) == 0: 
+                continue
+
             # Perform replacement (globally)
             newtext = text
             newtext = newtext.replace(wrong[0].lower() + wrong[1:], correct[0].lower() + correct[1:])
-            newtext = newtext.replace(wrong[0].upper() + wrong[1:], correct[0].upper() + correct[1:])
 
             if newtext == text: 
                 continue
