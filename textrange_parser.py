@@ -225,7 +225,8 @@ def list_ranges(text):
              ranges.append( [text.find(line), text.find(line) + len(line)] )
     return ranges
 
-def regularTag_range(text, tags=['nowiki', 'math', 'pre', 'gallery', 'source', 'blockquote', 'code', 'sub', 'imagemap', 'poem']):
+def regularTag_range(text, tags=['nowiki', 'math', 'pre', 'gallery', 'source', 
+                                 'blockquote', 'code', 'sub', 'imagemap', 'poem', 'syntaxhighlight']):
     """Returns the ranges of a some common tags.
     
     Default are 'nowiki', 'math', 'pre', 'gallery', 'source', 'blockquote',
