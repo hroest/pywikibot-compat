@@ -246,24 +246,7 @@ class BlacklistSpellchecker(abstract_Spellchecker):
             if len(wrongwords) == 0: 
                 continue
 
-            # Perform replacement (globally)
-            newtext = text
-            newtext = newtext.replace(wrong[0].lower() + wrong[1:], correct[0].lower() + correct[1:])
-
-            if newtext == text: 
-                continue
-
-            pywikibot.showDiff(text, newtext)
-            choice = pywikibot.inputChoice('Commit?', 
-               ['Yes', 'yes', 'No', 'No to all'], ['y', '\\', 'n', 'x'])    
-            if choice in ('x'):
-                return
-            if choice in ('y', '\\'):
-                if not self.rcount.has_key(wrong): 
-                    self.rcount[wrong] = 0
-                self.rcount[wrong] += 1
-                page.put_async(newtext, 
-                   comment="Tippfehler entfernt: %s -> %s" % (wrong, correct) )
+            InteractiveWordReplacer().processWrongWordsInteractively( [page] )
 
 def collectBlacklistPages(batchNr, gen, badDict):
     """Collect all wrong words in the provided page generator.
