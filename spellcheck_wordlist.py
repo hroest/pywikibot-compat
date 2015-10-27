@@ -40,6 +40,8 @@ from SpellcheckLib import readBlacklist
 from SpellcheckLib import InteractiveWordReplacer
 from SpellcheckLib import abstract_Spellchecker
 
+NUMBER_PAGES = 500
+
 class BlacklistSpellchecker(abstract_Spellchecker):
     """ Blacklist based spellchecker
 
@@ -439,7 +441,7 @@ def main():
         for wrong, correct in wordlist.iteritems():
             print "== Replace %s with %s" % (wrong, correct)
             s = pagegenerators.SearchPageGenerator(wrong, namespaces='0')
-            gen = pagegenerators.PreloadingGenerator(s)
+            gen = pagegenerators.PreloadingGenerator(s, pageNumber=NUMBER_PAGES)
             blacklistChecker.simpleReplace(gen, wrong, correct)
         return
     elif xmlfile:
@@ -453,7 +455,7 @@ def main():
         print "using cat", category
         cat = catlib.Category(pywikibot.getSite(), category)
         gen_ = pagegenerators.CategorizedPageGenerator(cat, recurse=True)
-        gen = pagegenerators.PreloadingGenerator(gen_)
+        gen = pagegenerators.PreloadingGenerator(gen_, pageNumber=NUMBER_PAGES)
     elif len(title) != 0:
         title = ' '.join(title)
         gen = [pywikibot.Page(pywikibot.getSite(),title)]
