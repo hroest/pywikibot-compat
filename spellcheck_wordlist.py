@@ -364,14 +364,56 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
     print("\nStarting to work on batches")
 
     if doNoninteractive:
-        nrpages = 10000
-        # process all of them, loop until there are no more pages
-        while nrpages == 10000:
+
+        BATCHSIZE = 50000
+        nrpages = BATCHSIZE
+        myIter = 1
+        nr_output = 0
+
+        # Noninteractive processing: process all articles in batches (until
+        # there are no more pages)
+        while nrpages == BATCHSIZE:
             res, nrpages = collectBlacklistPagesXML(nrpages, generator, badDict)
-        import pickle
-        f = open( 'spellcheck_whole.dump', 'w')
-        pickle.dump(res, f)
-        f.close()
+
+            # TODO : cleanup
+            page_name = "Benutzer:HRoestTypo/Tippfehler/20151002/%s" %myIter 
+
+            output = ""
+            for r in res:
+                # {{User:HRoestTypo/V/Typo|Johann Heinrich Zedler|Maerialien|Materialien}}
+                page = r
+                title = page.title
+
+                # Skip pages
+                if title in wr.ignorePages: 
+                    continue
+
+                for w in page.words:
+
+                    # Skip specific words
+                    if title in wr.ignorePerPages and \
+                       w.word in wr.ignorePerPages[title]: continue
+
+                    wrong = w.word
+                    correct = w.correctword
+
+                    if len(wrong) == 0:
+                        continue
+                    if wrong.lower() == correct.lower():
+                        continue
+                    
+                    if wrong[0].lower() != wrong[0]:
+                        # upper case
+                        correct = correct[0].upper() + correct[1:]
+
+                    output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" %  (title, w.word, correct)
+                    nr_output += 1
+
+            mypage = pywikibot.Page(pywikibot.getSite(), page_name)
+            mypage.put(output,  u'Update' )
+            myIter += 1
+
+        print "Write number of wrong words", nr_output
         return
 
     # Loop:
