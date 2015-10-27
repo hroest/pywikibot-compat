@@ -213,5 +213,42 @@ class TextrangeeParserTestCase(unittest.TestCase):
         self.assertEqual(result[0], '{{template_name |key1 = value1 ' )
         self.assertEqual(result[1], 'key2 = value2}}' )
 
+    def test_references_range(self):
+        text = """
+        Lorem ipsum
+        <ref name=roempp/>
+        Lorem ipsum
+        <ref name="roempp"/>
+        Lorem ipsum
+        sorte.<ref name=schil>[http://www.oesterreichwein.at Beschreibung der Rebsorte].</ref> Er wird als [[Roséwein]
+        [[Roséwein]]<ref name=schil/><ref>[http://www.ris.bka.gv.at Weinbezeichnungsverordnung], Teil II Nr. 111/2011: § 1 </ref>
+        Lorem ipsum
+        """
+        sample = text
+        expected = [[29, 47], [76, 96], [258, 275], [131, 211], [275, 368]]
+        computed = references_range(sample) 
+        self.assertEqual(expected, computed)
+
+        sample = testSamples.test_sample2
+        expected = [[787, 959]]
+        computed = references_range(sample) 
+        self.assertEqual(expected, computed)
+
+        sample = testSamples.test_sample2
+        expected = [[787, 959]]
+        computed = references_range(sample) 
+        self.assertEqual(expected, computed)
+
+        sample = testSamples.Kaliumpermanganat_rev73384760
+        expected = [[459, 479], [708, 728], [767, 787], [876, 896], [969, 989], [1225, 1245], [564, 660]]
+        computed = references_range(sample) 
+        self.assertEqual(sorted(expected), sorted(computed) )
+
+        sample = testSamples.Aluminiumnitrat_rev69770393
+        expected = [[1025, 1050], [1075, 1093], [1118, 1143], [1928, 1953], [2078, 2096], [2484, 2509], [2945, 2970], [435, 555], [774, 876], [1582, 1632]]
+        computed = references_range(sample) 
+        self.assertEqual(sorted(expected), sorted(computed) )
+
+
 if __name__ == "__main__":
     unittest.main()

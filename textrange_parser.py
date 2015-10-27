@@ -278,10 +278,10 @@ def references_range(text):
     #TODO there is also group attribute
     #TODO capture <ref name="" group="">...</ref>.
     #capture <ref name="">...</ref>
-    refName = u"<ref\s+name=\"[^\"^>]*\"\s*/>"
-
+    refName = u"<ref\s+[^>]*\s*/>"
     for q in re.finditer(refName, text, re.DOTALL):
         reftagRange.append([q.start(),q.end()])
+
 
     ref = "<ref[^>^/]*>"
     for q in re.finditer(ref, text):
@@ -290,6 +290,7 @@ def references_range(text):
             reftagRange.append([q.start(),m.end()+q.start()])
         else:
             pass
+
     return reftagRange
 
 def hyperlink_range(text):
