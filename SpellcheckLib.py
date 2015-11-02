@@ -201,6 +201,8 @@ class abstract_Spellchecker(object):
             return curr_r, loc, True
 
         # Check if current range needs to be advanced
+
+        is_advanced = False
         while curr_r < len(ranges) and ranges[curr_r][0] < loc:
             curr_r += 1
 
@@ -211,7 +213,11 @@ class abstract_Spellchecker(object):
 
                 # Update the current location to the end of the range
                 loc = ranges[curr_r][1]
+                is_advanced = True
 
+        # Also return true if we advanced the ptr
+        if is_advanced:
+            return curr_r, loc, True
 
         # Else, return the input parameters and 
         return curr_r, loc, False
