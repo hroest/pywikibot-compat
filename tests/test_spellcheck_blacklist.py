@@ -128,6 +128,9 @@ def getTestCaseSchilcher():
         '''Schilcher''', selten auch ''Schiller'', ist die Bezeichnung des Weins aus einer [[Weinbau in Österreich|österreichischen]] [[Rotwein]]traubensorte.<ref name=schil>[http://www.oesterreichwein.at/unser-wein/oesterreichs-rebsorten/rotwein/blauer-wildbacher/ Beschreibung der Rebsorte].</ref> Er wird als [[Roséwein]]<ref name=schil/><ref>[http://www.ris.bka.gv.at/Dokumente/BgblAuth/BGBLA_2011_II_111/BGBLA_2011_II_111.pdf Weinbezeichnungsverordnung], österreichisches Bundesgesetzblatt Teil II Nr. 111/2011: § 1 Abs. 2 Z 10 lit. a.</ref> in der [[Steiermark]] aus der [[Liste von Rebsorten|roten Rebsorte]] [[Blauer Wildbacher]] gewonnen und hat einen geschützten Handelsnamen: Schilcher muss aus der Steiermark kommen. Im Frühstadium seiner Gärung wird der Wein als '''Schilchersturm''' angeboten.
         """
 
+def getTestCaseFrieden():
+    return u"""ussion unterscheidet man zwischen dem oben genannten ''engen Friedensbegriff''(„''[[negativer Frieden]]''“), der die Abwesenheit von [[Konflikt]]en beinhaltet, und einem ''weiter gefassten Friedensbegriff'' („''[[positiver Frieden]]''“). Letzterer umfasst neben dem Fehlen kriegerischer Gewalt, bei """
+
 # ##########################################################################
 # Start of Test
 class SpellcheckBlacklistTestCase(unittest.TestCase):
@@ -278,6 +281,16 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
 
         result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'weins' : 'wrong'})
         assert len(result) == 1
+
+    def test_spellcheck_blacklist_6(self):
+
+        sp = self.sp
+
+        result = sp.spellcheck_blacklist(getTestCaseFrieden(), {'mfasst' : 'wrong'})
+        assert len(result) == 0
+
+        result = sp.spellcheck_blacklist(getTestCaseFrieden(), {'positiver' : 'wrong'})
+        assert len(result) == 0
 
     def test_spellcheck_blacklist_detail(self):
         text = u"testtext with mistake&nbsp;and more words"
