@@ -175,16 +175,32 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
         assert res[1] == [24,42]
         assert text[18:24] + text[42:] == " TEXT  MORE TEXT"
 
-        # Nested
+        # Nested and overlapping
+
+        # 1. Test none (old behavior)
         text = "{{test template }} TEXT {{test2 template param1 = {{template 3 param_internal = some }} | param2 = other }} MORE TEXT"
-        res = self.sp.forbiddenRanges(text, removeNested=False)
+        res = self.sp.forbiddenRanges(text, removeNested=False, mergeRanges=False)
         assert len(res) == 3
         assert res[0] == [0,18]
         assert res[1] == [50,87]
         assert res[2] == [24,107]
         assert text[18:24] + text[107:] == " TEXT  MORE TEXT"
-        #
-        res = self.sp.forbiddenRanges(text, removeNested=True)
+
+        # 2. Remove nested only 
+        res = self.sp.forbiddenRanges(text, removeNested=True, mergeRanges=False)
+        assert len(res) == 2
+        assert res[0] == [0,18]
+        assert res[1] == [24,107]
+
+        # 3. Merge only
+        res = self.sp.forbiddenRanges(text, removeNested=False, mergeRanges=True)
+        assert len(res) == 3
+        assert res[0] == [0,18]
+        assert res[1] == [24,107]
+        assert res[2] == [50,87]
+
+        # 3. Remove nested and merge 
+        res = self.sp.forbiddenRanges(text, removeNested=True, mergeRanges=True)
         assert len(res) == 2
         assert res[0] == [0,18]
         assert res[1] == [24,107]
