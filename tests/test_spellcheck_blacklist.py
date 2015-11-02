@@ -129,7 +129,45 @@ def getTestCaseSchilcher():
         """
 
 def getTestCaseFrieden():
-    return u"""ussion unterscheidet man zwischen dem oben genannten ''engen Friedensbegriff''(„''[[negativer Frieden]]''“), der die Abwesenheit von [[Konflikt]]en beinhaltet, und einem ''weiter gefassten Friedensbegriff'' („''[[positiver Frieden]]''“). Letzterer umfasst neben dem Fehlen kriegerischer Gewalt, bei """
+    return u"""unterscheidet man zwischen dem oben genannten ''engen Friedensbegriff''(„''[[negativer Frieden]]''“), der die Abwesenheit von [[Konflikt]]en beinhaltet, und einem ''weiter gefassten Friedensbegriff'' („''[[positiver Frieden]]''“). Letzterer umfasst neben dem Fehlen kriegerischer Gewalt, bei """
+
+def getTestCaseLit():
+    return u"""== Literatur ==
+[[Datei:Traite-Pyrenees.jpg|miniatur|Unterzeichnung des Pyrenäenfriedens auf der [[Isla de los Faisanes]]]]
+* Tobias Burg: ''Die Signatur. Formen und Funktionen vom Mittelalter bis zum 17. Jahrhundert''. LIT, Münster u. a. 2007, ISBN 978-3-8258-9859-5 (zur Signatur von Werken der Bildenden Kunst).
+* Angelika Seibt: ''Unterschriften und Testamente – Praxis der forensischen Schriftuntersuchung''. Beck, München 2008, ISBN 978-3-406-58113-7.
+
+== Weblinks ==
+"""
+class SpellcheckWordParse(unittest.TestCase):
+
+    def setUp(self):
+        self.sp = BlacklistSpellchecker()
+
+    def test_words_frieden(self):
+        return
+
+        result = self.sp.spellcheck_blacklist(getTestCaseFrieden(), {'positiver' : 'wrong'}, return_for_db=True)
+        assert len(result) == 21
+        assert result == [u'unterscheidet', u'man', u'zwischen', u'dem', u'oben', u'genannten', u'der', u'die', u'Abwesenheit', u'von', u'beinhaltet', u'und', u'einem', u'Letzterer', u'umfasst', u'neben', u'dem', u'Fehlen', u'kriegerischer', u'Gewalt', u'bei']
+
+    def test_words_pietismus(self):
+
+        result = self.sp.spellcheck_blacklist(getTestCaseLit(), {'positiver' : 'wrong'}, return_for_db=True)
+        assert len(result) == 15, len(result)
+        assert result ==  [u'Literatur', u'Tobias', u'Burg', u'M\xfcnster', u'zur', u'Signatur', u'von', u'Werken', u'der', u'Bildenden', u'Kunst', u'Angelika', u'Seibt', u'Beck', u'M\xfcnchen']
+
+        mypage = pywikibot.Page(pywikibot.getSite(), 'Unterschrift')
+        text = mypage.getOldVersion(128568384)
+        result = self.sp.spellcheck_blacklist(text, {'positiver' : 'wrong'}, return_for_db=True)
+        assert len(result) == 1833, len(result)
+
+
+        result = self.sp.spellcheck_blacklist(getTestCasePietismus(), {'positiver' : 'wrong'}, return_for_db=True)
+        assert len(result) == 27, len(result)
+        assert result == [u'Als', u'positive', u'Selbstbezeichnung', u'hat', u'erstmals', u'der', u'pietistische', u'Leipziger', u'Professor', u'das', u'Wort', u'verwendet', u'poem', u'Oktober', u'folgte', u'Fellers', u'Bekenntnis', u'dem', u'Sonett', u'auf', u'den', u'verstorbenen', u'Leipziger', u'Kaufmann', u'Joachim', u'G\xf6ring', u'poem']
+
+
 
 # ##########################################################################
 # Start of Test
