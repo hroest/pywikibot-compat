@@ -62,6 +62,7 @@ def findRange(opening, closing, text, start=0, alternativeBreak = None,
     The alternativeBreak argument allows to pass alternative breakpoints that
     are treated as if they were closing statements as well.
     """
+
     loc = start
     stack = []
     these_ranges = []
@@ -208,7 +209,10 @@ def sic_comment_range(text, around=50):
     ranges = []
     for r in comment_range(text):
         subtext = get_subtext(text, r)
-        if subtext.find('sic') != -1: ranges.append( [r[0]-around, r[1]+around] )
+        if subtext.find('sic') != -1:
+            ranges.append( [r[0]-around, r[1]+around] )
+        if subtext.find('Sic!') != -1:
+            ranges.append( [r[0]-around, r[1]+around] )
     return ranges
 
 def list_ranges(text):
