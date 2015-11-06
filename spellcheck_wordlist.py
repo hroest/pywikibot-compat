@@ -15,6 +15,7 @@ python spellcheck_wordlist.py -searchWiki
 
 Wordlists can be provided in one of following formats (note: all words need to be in lowercase):
 
+-typopage:         Provide a wikipage that contains one entry per line, namely a template with three parameters: article, wrong word, correct word
 -blacklist:        Provide a file that contains a list of wrong words (provide the wrong and the correct word per line separated by semicolon ";")
 -singleword:       To search and replace a single word use "wrongword;correctword"
 -blacklistpage:    Link to a specific page where the words are listed using "*" and separated by ":"
@@ -28,9 +29,16 @@ Example usage:
     spellcheck_wordlist.py Uttwil -singleword:"goldschmied;test"
     spellcheck_wordlist.py -xmlfile:/media/data/tmp/wiki/dewiki-latest-pages-articles.xml.bz2 -singleword:"und;test" -batchNr:10
 
+    spellcheck_wordlist.py -blacklist:blacklist.dic -recentchanges
+
     spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replacedDerivatives -cat:Schweiz
     spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replacedDerivatives -searchWiki
 
+    spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replaced -searchWiki
+
+    spellcheck_wordlist.py -typopage:Benutzer:HRoestTypo/Tippfehler/20151002/63
+
+    python spellcheck_wordlist.py -searchWiki  -blacklist:concat.dic
 
 """
 
@@ -46,8 +54,9 @@ from SpellcheckLib import Word, WrongWord
 from SpellcheckLib import readBlacklist
 from SpellcheckLib import InteractiveWordReplacer
 from SpellcheckLib import abstract_Spellchecker
+import numpy
 
-NUMBER_PAGES = 500
+NUMBER_PAGES = 60
 
 class BlacklistSpellchecker(abstract_Spellchecker):
     """ Blacklist based spellchecker
