@@ -172,44 +172,68 @@ class BlacklistSpellchecker(abstract_Spellchecker):
 
         return wrongWords
 
-    def _text_skip(self, text, loc, word):
+    def _text_skip(self, text, loc, word, title=None):
 
-        done = False
+        #exclude words that are smaller than 3 letters
+        if len( word.lower() ) < 3: 
+            return True
 
         # if we have ''' before, we dont want to interpret
         if loc > 3 and text[loc-3:loc] == "'''" or \
             text[loc:loc+3] == "'''" :
-            done = True
+            return True
 
         # if we have a <nowiki></nowiki> break before, we dont want to interpret
         if loc > 17 and text[loc-17:loc] == '<nowiki></nowiki>':
-            done = True
+            return True
 
         # if we have a closing wikilink "]]" before, we dont want to interpret
         if loc > 2 and text[loc-2:loc] == ']]':
-            done = True
+            return True
 
         # try to find out whether its an abbreviation and has a '.' without capitalization
         if loc+len(word)+5 < len(text) and \
            text[loc+len(word)] == '.' and \
            text[loc+len(word)+2].islower() and \
            not text[loc+len(word):loc+len(word)+5] == '<ref>':
-            done = True
+            return True
 
         # words that end with ' or -
         if loc+len(word) < len(text) and text[loc+len(word)] == '-':
-            done = True
+            return True
+
+        # words that start with " -"
+        if loc > 1 and text[loc-1] == "-" and text[loc-2] == " ":
+            return True
 
         #exclude words that have uppercase letters in the middle
         for l in word[1:]:
             if l.isupper(): 
-                done=True;
+                return True
 
-        #exclude words that are smaller than 3 letters
-        if len( word.lower() ) < 3: 
-            done = True
+        # Get possible genetiv, derive word stem and search whether the word
+        # occurs somewhere in the text
+        if word[0].isupper() and word[-1] == "s":
+            stem = word[:-1]
+            try:
+                rstr = r'\b%s\b' % (word[:-1])
+                match_stem =  [m.group(0) for m in re.finditer(rstr, text)]
+                if len(match_stem) > 1:
+                    return True
+            except Exception:
+                pass
 
-        return done
+        # Check whether the name exists in the title
+        if title is not None:
+            for title_word in title.split():
+                if title_word == word:
+                    return True
+                if word.find(title_word) != -1:
+                    return True
+                if title_word.find(word) != -1:
+                    return True
+
+        return False
 
     def spellcheck_blacklist_regex(self, text, badDict, return_for_db=False, return_words=False):
 
