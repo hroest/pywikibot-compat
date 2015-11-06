@@ -522,6 +522,7 @@ def main():
     blacklistpage = None
     category = None
     xmlfile = None
+    typopage = None
     title = []
     batchNr = 1000
 
@@ -532,6 +533,8 @@ def main():
             recentChanges = True
         elif arg.startswith("-blacklistpage:"):
             blacklistpage = arg[15:]
+        elif arg.startswith("-typopage:"):
+            typopage = arg[10:]
         elif arg.startswith("-singleword:"):
             singleWord = arg[12:]
         elif arg.startswith("-searchWiki"):
@@ -571,6 +574,134 @@ def main():
             wordlist[spl[0].lower()] = spl[1].strip().lower()
 
     print "Loaded wordlist of size", len(wordlist)
+
+    if typopage:
+        mypage = pywikibot.Page(pywikibot.getSite(), typopage)
+        text = mypage.get()
+        pages = {}
+        print "Will generate for ", len(text.splitlines()), "words"
+
+        # Iterate through page with words to replace
+        for line in text.splitlines():
+            if len(line) > 4:
+                inner = line.strip()[2:-2]
+                elem = inner.split("|")
+                title = elem[1]
+
+                wrongWord = elem[2]
+                correctWord = elem[3]
+
+                if len(wrongWord) < 5 or len(correctWord) < 5:
+                    print "skip", title, ":", wrongWord
+                    continue
+
+                if title in pages:
+                    page = pages[title]
+                    page.words.append( [ wrongWord, correctWord ] )
+                else:
+                    page = pywikibot.Page(pywikibot.getSite(), title) 
+                    page.words = [ [ wrongWord, correctWord ] ]
+                    pages[ title ] = page
+
+        # Retrive text for pages to work on
+        print "Will generate for ", len(pages), "pages"
+        gen = pagegenerators.PreloadingGenerator(pages.values(), pageNumber=NUMBER_PAGES)
+
+        # Iterate all pages to work on
+        wr = InteractiveWordReplacer()
+        for page in gen:
+            print "================================"
+            print page
+
+            if page.title().startswith("Liste der Biografien"):
+                print "Skip %s" % "Liste der Biografien"
+                continue
+
+            try:
+                text = page.get()
+            except pywikibot.NoPage:
+                pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+                continue
+            except pywikibot.IsRedirectPage:
+                pywikibot.output(u"%s is a redirect, skip!" % page.title())
+                continue
+
+            wDict = dict( [ (w[0].lower(), w[1].lower() ) for w in page.words])
+
+            if len(wDict) == 1:
+                wrong = page.words[0][0]
+                occurence = text.count(wrong)
+
+                rstr = r'\b%s\b' % (wrong)
+                match = [m.group(0) for m in re.finditer(rstr, text)]
+                occurence = len(match)
+
+                # Exit if the word is common in the page
+                print "Wrong word", wrong, "Occurence", occurence, " (vs %s)" % text.count(wrong)
+                if occurence > 1:
+                    continue
+
+                in_enum = False
+                for line in text.splitlines():
+                    if line.find(wrong) != -1:
+
+                        # Find the sentence in the line where the word was found
+                        sentence = line
+                        s = line.split(".")
+                        for t in s:
+                            if t.find(wrong) != -1:
+                                sentence = t
+                        
+                        # Get a possible enumeration
+                        enumeration = sentence.split(",")
+                        if len(enumeration) < 3:
+                            break
+
+                        # Check in which part of the enumeration it is
+                        found_in = -1
+                        enumeration = enumeration[1:]
+                        for j,e in enumerate(enumeration):
+                            # print e, len(e)
+                            if e.find(wrong) != -1:
+                                found_in = j
+
+                        # Check whether it is part of an enumeration
+                        if found_in > 0 and found_in < len(enumeration) -1:
+                            if len(enumeration[found_in-1]) < 30 and \
+                               len(enumeration[found_in-0]) < 30 and \
+                               len(enumeration[found_in+1]) < 30:
+                                    in_enum = True
+                                    print "Found in middle of enum in ", sentence
+                        elif found_in + 1 == len(enumeration):
+                            
+                            if enumeration[found_in].find("und") != -1 and \
+                               len(enumeration[found_in-1]) < 30 and \
+                               len(enumeration[found_in]) < 50:
+                                    in_enum = True
+                                    print "Found at the end of enum ", sentence
+
+                if in_enum:
+                    continue
+
+            # First, check whether word is present (allows early exit)
+            wrongwords = BlacklistSpellchecker().spellcheck_blacklist(
+                text, wDict, return_words=True, title=page.title())
+
+            if len(wrongwords) == 0: 
+                print "Skip", page.title(), "no words"
+                continue
+
+            page.words = wrongwords
+            wr.processWrongWordsInteractively( [page] )
+
+        # Print output
+        for k in sorted(wr.ignorePerPages):
+            vlist = wr.ignorePerPages[k]
+            for v in sorted(vlist):
+                print "* %s : %s" % (k, v)
+
+        print wr.dontReplace
+        return
 
     # Initiate checker
     blacklistChecker = BlacklistSpellchecker()
