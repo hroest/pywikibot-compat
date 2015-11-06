@@ -315,7 +315,7 @@ class Blacklistchecker():
                 if len(list(s)) > 90: s = s[:5]
             for p in s: 
                 p.wrong = wrong;
-                p.words = [ spellcheck.WrongWord(wrong, bigword=wrong, correctword=correct) ]
+                p.words = [ SpellcheckLib.WrongWord(wrong, bigword=wrong, correctword=correct) ]
                 print "append page", p
                 pages.append(p)
         return pages
