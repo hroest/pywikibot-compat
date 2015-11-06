@@ -52,7 +52,7 @@ class abstract_Spellchecker(object):
     Base class for various spellcheckers
     """
 
-    def forbiddenRanges(self, text, removeNested=True):
+    def forbiddenRanges(self, text, removeNested=True, level="full"):
         """ Identify ranges where we do not want to spellcheck.
 
         These ranges include templates, wiki links, tables etc
@@ -93,25 +93,26 @@ class abstract_Spellchecker(object):
         # Regex-based ranges ... 
         ran.extend( textrange_parser.hyperlink_range(text) )
         #ran.extend( textrange_parser.picture_range(text) )       #everything except caption
-        ran.extend( textrange_parser.references_range(text) )     #all reftags
         ran.extend( textrange_parser.regularTag_range(text) )     #all tags specified
         ran.extend( textrange_parser.sic_comment_range(text) )    #<!--sic-->
 
-        # ran.extend( textrange_parser.list_ranges(text) )          # lists
+        if level == "full":
+            ran.extend( textrange_parser.references_range(text) )     #all reftags
+            ran.extend( textrange_parser.list_ranges(text) )          # lists
 
         # Remove trailing text at the end (references, weblinks etc)
-        mm = re.search("==\s*Weblinks\s*==", text)
-        if mm: ran.append( [mm.start(), len(text)] )
+        if level == "full":
+            mm = re.search("==\s*Weblinks\s*==", text)
+            if mm: ran.append( [mm.start(), len(text)] )
 
-        mm = re.search("==\s*Quellen\s*==", text)
-        if mm: ran.append( [mm.start(), len(text)] )
+            mm = re.search("==\s*Quellen\s*==", text)
+            if mm: ran.append( [mm.start(), len(text)] )
 
-        mm = re.search("==\s*Einzelnachweise\s*==", text)
-        if mm: ran.append( [mm.start(), len(text)] )
+            mm = re.search("==\s*Einzelnachweise\s*==", text)
+            if mm: ran.append( [mm.start(), len(text)] )
 
-        mm = re.search("\[\[Kategorie:", text)
-        if mm: ran.append( [mm.start(), len(text)] )
-
+            mm = re.search("\[\[Kategorie:", text)
+            if mm: ran.append( [mm.start(), len(text)] )
 
         if removeNested:
             return self.remove_nested_ranges(ran)
