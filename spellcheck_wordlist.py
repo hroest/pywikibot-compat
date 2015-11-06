@@ -134,9 +134,11 @@ class BlacklistSpellchecker(abstract_Spellchecker):
             if done:
                 continue
 
-            # We advance the location by the characters skipped
+            # We advance the location by the characters skipped (group 1)
             loc += len(match.group(1))
-            done = self._text_skip(text, loc, smallword)
+            done = self._text_skip(text, loc, smallword, title)
+            if verbose:
+                print "    new loc (after accounting for skipped chars)", loc, "which is '%s'" % match.group(1)
 
             ###################################
             #use this code to insert into the database
@@ -163,7 +165,11 @@ class BlacklistSpellchecker(abstract_Spellchecker):
                             wrongWords.append([smallword, bigword, loc, badDict[smallword.lower()],
                                 text[max(0, loc-100):min(loc+100, len(text))] ])
 
+            # We advance the location by the characters of the word (group 2)
             loc += LocAdd
+            if verbose:
+                print "    new loc (after accounting for word)", loc, "we are at", text[loc]
+
         return wrongWords
 
     def _text_skip(self, text, loc, word):
