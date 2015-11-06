@@ -7,6 +7,14 @@ import textrange_parser as ranges
 
 import wikipedia as pywikibot
 import pagegenerators
+import SpellcheckLib
+
+hspell = None
+try:
+    import hunspell
+    hspell = hunspell.HunSpell("/usr/share/hunspell/de_DE" + ".dic", "/usr/share/hunspell/de_DE" + ".aff")
+except Exception:
+    pass
 
 class Blacklistchecker():
 
@@ -157,8 +165,8 @@ class Blacklistchecker():
 
     def searchDerivatives(self, wrongs, corrects, cursor, notlike='', db='hroest.countedwords'):
         q = """ select * from %s
-        where word like '%s' 
-        and word not like '%s'
+        where smallword like '%s' 
+        and smallword not like '%s'
         order by occurence DESC; """ % (db, wrongs+'%', notlike) 
         cursor.execute( q )
         allwrong = cursor.fetchall()
@@ -181,7 +189,7 @@ class Blacklistchecker():
     # 
     def find_candidates(self, myw, cursor, 
                         occurence_cutoff = 20, lcutoff = 0.8,
-                        db='hroest.countedwords'):
+                        db_='hroest.countedwords', ldistance = 6):
         """
         Find candidate misspellings for the input (correct) myw 
 
@@ -200,44 +208,86 @@ class Blacklistchecker():
         l = len(myw)
         cursor.execute(
         """
-        select * from %s where word like '%s' 
-        #and length(word) between %s and %s
-        and word not like '%s'
-        order by word 
-        """ % (db, sterm.encode('utf8')+'%', l-2, l+2, myw.encode('utf8')+'%') )
+        select * from %s where smallword like '%s'
+        #and length(smallword) between %s and %s
+        and smallword not like '%s'
+        and occurence < %s
+        order by smallword
+        """ % (db_, sterm.encode('utf8')+'%', l-2, l+2, myw.encode('utf8')+'%' , occurence_cutoff))
         similar = cursor.fetchall()
-        #original = [s for s in similar if s[1] == myw][0]
-        #original_count = original[0]
 
-        # 2. Select candidates that have a Levenshtein ratio less than the cutoff
+        # 2 Select candidates that have a Levenshtein ratio less than the cutoff
         candidates = [s[1] for s in similar if 
-                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff 
-                      and s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
-                      and s[0] < occurence_cutoff 
-                      and not '\xc2\xad' in s[1]] 
+                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff and
+                      Levenshtein.distance(myw,s[1].decode('utf8')) < ldistance and
+                      not '\xc2\xad' in s[1]] 
 
+        if False and len(myw) > 9:
+                sterm = "%" + myw[ 3:7] + "%"
+                cursor.execute(
+                """
+                select * from %s where smallword like '%s' 
+                #and length(smallword) between %s and %s
+                and smallword not like '%s'
+                and occurence < %s
+                order by smallword 
+                """ % (db_, sterm.encode('utf8'), l-2, l+2, myw.encode('utf8')+'%', occurence_cutoff) )
+                similar = cursor.fetchall()
+
+                
         # 3. Search for all words that start with the same char and end with the same 3 chars
         sterm = myw[0] + '%' + myw[-3:]
         cursor.execute(
         """
-        select * from %s where word like '%s' 
-        #and length(word) between %s and %s
-        and word not like '%s'
-        order by word 
-        """ % (db, sterm.encode('utf8')+'%', l-2, l+2, myw.encode('utf8')+'%') )
+        select * from %s where smallword like '%s' 
+        #and length(smallword) between %s and %s
+        and smallword not like '%s'
+        and occurence < %s
+        order by smallword 
+        """ % (db_, sterm.encode('utf8')+'%', l-2, l+2, myw.encode('utf8')+'%', occurence_cutoff) )
         similar = cursor.fetchall()
-        #original = [s for s in similar if s[1] == myw][0]
-        #original_count = original[0]
 
-        # 4. Select candidates that have a Levenshtein ratio less than the cutoff
+        # 4 Select candidates that have a Levenshtein ratio less than the cutoff
         candidates.extend(  [s[1] for s in similar if 
-                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff 
-                      and s[1] != myw #and s[0] *1.0 / original_count < 1e-3]
-                      and s[0] < occurence_cutoff 
-                      and not '\xc2\xad' in s[1]] )
+                      Levenshtein.ratio(myw,s[1].decode('utf8')) > lcutoff and
+                      Levenshtein.distance(myw,s[1].decode('utf8')) < ldistance  and
+                      not '\xc2\xad' in s[1]] )
 
-        # 5. Return unique set 
-        return list(set( candidates ) )
+        # Remove certain candidates 
+        candidates = [c for c in candidates if c.find(")") == -1 and c.find("(") == -1 ]
+
+        # 5 Remove candidates that are correctly spelled
+        if hspell is not None:
+            candidates = [c for c in candidates if not hspell.spell( c ) ]
+
+        # 6 Check for similar things in the database (capitalization)
+        final_candidates = []
+        for cand in candidates:
+                q = "select occurence, smallword from hroest.countedwords_20151002_n where smallword = '%s';"  % cand
+                try:
+                    cursor.execute(q)
+                except Exception:
+                    # not properly escaped string ... 
+                    continue
+                nr = -1
+                for res in cursor.fetchall():
+                    if res[1].decode("utf8").lower() == cand.decode("utf8").lower():
+                        if res[0] > nr:
+                            nr = res[0]
+                # print "check ", cand, nr
+                if nr < occurence_cutoff:
+                    final_candidates.append(cand)
+
+        print "Removed %s due to high occurence in the word count" % ( len(candidates) - len(final_candidates) )
+
+        # Get unique candidates sorted by distance
+        final_candidates = list(set(final_candidates))
+        final_candidates.sort(lambda x,y: cmp( Levenshtein.ratio(myw,x.decode('utf8')), Levenshtein.ratio(myw,y.decode('utf8')) ) )
+        # print "sorted"
+        # for w in final_candidates:
+        #         print w, Levenshtein.distance(myw,w.decode('utf8')) ,  Levenshtein.ratio(myw,w.decode('utf8'))
+
+        return final_candidates
 
     def load_candidates(self, correct, candidates):
         import spellcheck
