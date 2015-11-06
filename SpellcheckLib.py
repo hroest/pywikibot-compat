@@ -234,6 +234,7 @@ class InteractiveWordReplacer(abstract_Spellchecker):
     def __init__(self, xmldump=None):
         self.ignorePages = []
         self.ignorePerPages = {}
+        self.dontReplace = []
 
         self.Callbacks = []
 
@@ -244,7 +245,6 @@ class InteractiveWordReplacer(abstract_Spellchecker):
         """
 
         self.performReplacementList = []
-        self.dontReplace = []
         ask = True
         gen = pagegenerators.PreloadingGenerator(pages)
         for page in gen:
@@ -302,6 +302,10 @@ class InteractiveWordReplacer(abstract_Spellchecker):
                and smallword in self.ignorePerPages[title]: 
                 continue
             if smallword in dontReplace:
+                if self.ignorePerPages.has_key( title ):
+                    self.ignorePerPages[title].append( smallword)
+                else: 
+                    self.ignorePerPages[ title ] = [ smallword ]
                 continue
 
             bigword = Word(w.bigword)
@@ -338,15 +342,19 @@ class InteractiveWordReplacer(abstract_Spellchecker):
 
             # Print context
             pywikibot.output(u"    %s" % text[max(0,w.site-55):w.site+len(w)+55])
-            choice = pywikibot.inputChoice('', ['Yes', 'yes', 'No',
-               'No but dont save', 'Replace by something else',
-                'Exit and go to next site'], ['y', '\\', 'n', 'b', 'r', 'x'])
+            choice = pywikibot.inputChoice('', ['Yes', 'yes', 'No', 'no',
+               'No but dont save', 'never replace' 'Replace by something else',
+                'Exit and go to next site'], ['y', '\\', 'n', ']', 'b', 'v', 'r', 'x'])
 
             # Evaluate user choice
             if choice == 'b':
                 continue
-            if choice == 'n': 
+            if choice in ('v'): 
                 dontReplace.append(w.word) 
+                if self.ignorePerPages.has_key( title ):
+                    self.ignorePerPages[title].append( smallword)
+                else: self.ignorePerPages[ title ] = [ smallword ]
+            if choice in ('n', ']'): 
                 if self.ignorePerPages.has_key( title ):
                     self.ignorePerPages[title].append( smallword)
                 else: self.ignorePerPages[ title ] = [ smallword ]
