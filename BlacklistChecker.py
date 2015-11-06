@@ -50,8 +50,7 @@ class Blacklistchecker():
                 page = page.getRedirectTarget()
                 text = page.get()
 
-            print "got text.."
-            myranges = spellchecker.forbiddenRanges(text)
+            myranges = spellchecker.forbiddenRanges(text, level="moderate")
             r = ranges.Ranges()
             r.ranges = myranges
             ext_r = r.get_large_ranges()
@@ -61,37 +60,46 @@ class Blacklistchecker():
             cupper = correct[0].upper() + correct[1:]
             clower = correct[0].lower() + correct[1:]
 
+            # Try to find the position to replace the word
+            #  -> first look for the upper case version of the word
             pos = 0 
             newtext = text[:]
-            print "start finding position...", page.title(), wupper
-            while True: 
-                found = newtext.find( wupper, pos)
+            while True:
+                found = newtext.find(wupper, pos)
                 pos += found + 1
-                print pos, len(ext_r)
-                if found in ext_r and found != -1: continue
-                if found == -1: break
+                if found in ext_r and found != -1:
+                    # Skip excluded position
+                    continue
+                if found == -1:
+                    break
                 newtext = newtext[:found] + cupper + newtext[found+len(wupper):]
-            #newtext = text.replace(wupper, cupper)
+
+            #  -> next look for the lower case version of the word
             mywrong = wupper
             if newtext == text: 
                 pos = 0 
                 newtext = text[:]
-                print "start finding position...", page.title(), wlower
                 while True: 
                     found = newtext.find( wlower, pos)
                     pos += found + 1
-                    print pos, len(ext_r)
-                    if found in ext_r and found != -1: continue
-                    if found == -1: break
+                    if found in ext_r and found != -1:
+                        # Skip excluded position
+                        continue
+                    if found == -1:
+                        break
                     newtext = newtext[:found] + clower + newtext[found+len(wlower):]
-                #newtext = text.replace(wlower, clower)
-                mywrong = wlower
-                if newtext == text: continue
 
-            print page, wrong, correct
+                mywrong = wlower
+                if newtext == text:
+                        print "    Continue (no change)"
+                        continue
+
             if not replacecount.has_key(mywrong): replacecount[mywrong] = 0
             pywikibot.showDiff(text, newtext)
-            self.ask_user_input(page, mywrong, correct, newtext, text)
+            a = self.ask_user_input(page, mywrong, correct, newtext, text)
+            if a is not None and a == "x":
+                print "Exit, go to next"
+                return
 
     def ask_user_input(self, page, wrong, correct, newtext, text):
         """
@@ -106,21 +114,19 @@ class Blacklistchecker():
         while True:
             choice = pywikibot.inputChoice('Commit?', 
                ['Yes', 'yes', 'No', 'Yes to all', 'No to all', 
-                'replace with ...', 'replace always with ...', '<--!sic!-->'], 
-                           ['y', '\\', 'n','a', 'noall', 'r', 'ra', 's'])
+                'replace with ...', 'replace always with ...', '<--!sic!-->', "Exit"],
+                           ['y', '\\', 'n','a', 'noall', 'r', 'ra', 's', 'x'])
             if choice == 'noall':
                 print 'no to all'
-                self.noall.append( wrong )
-                return
+                self.noall.append( wrong.lower() )
+                return None
             elif choice in ('y', '\\'):
                 if not replacedic.has_key(wrong) and not correctmark:
                     replacedic[wrong] = correct
-                if not correctmark: replacecount[wrong] += 1
-                print "putting page"
+                if not correctmark: 
+                    replacecount[wrong] += 1
                 page.put_async(mynewtext, comment=mycomment)
-                #page.put(mynewtext, comment=mycomment)
-                print "put page"
-                return
+                return None
             elif choice == 's':
                 mynewtext = text.replace(wrong, wrong + '<!--sic!-->')
                 pywikibot.showDiff(text, mynewtext)
@@ -129,11 +135,25 @@ class Blacklistchecker():
             elif choice == 'r':
                 replacement = pywikibot.input('Replace "%s" with?' % wrong)
                 mynewtext = text.replace(wrong, replacement)
-                if mynewtext == text: return
+                if mynewtext == text: 
+                    return None
                 pywikibot.showDiff(text, mynewtext)
                 mycomment = "Tippfehler entfernt: %s -> %s" % (wrong, replacement) 
-            elif choice == 'ra': pass #TODO
-            else: return
+            elif choice == 'ra': 
+                print "Replace all with "
+                replacement = pywikibot.input('Replace "%s" with?' % wrong)
+                self.replaceNew[ wrong ]  = replacement
+                mynewtext = text.replace(wrong, replacement)
+                if mynewtext == text: 
+                    return None
+                pywikibot.showDiff(text, mynewtext)
+                mycomment = "Tippfehler entfernt: %s -> %s" % (wrong, replacement) 
+            elif choice == 'n': 
+                return None
+            elif choice == 'x': 
+                return "x"
+            else: 
+                return None
 
     def searchDerivatives(self, wrongs, corrects, cursor, notlike='', db='hroest.countedwords'):
         q = """ select * from %s
