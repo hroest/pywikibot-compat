@@ -513,6 +513,7 @@ def main():
     #                           MAIN                                  #
     ###################################################################
     searchWiki = False
+    recentChanges = False
     singleWord = None
     blacklistfile = None
     blacklistpage = None
@@ -524,7 +525,8 @@ def main():
     for arg in pywikibot.handleArgs():
         if arg.startswith("-blacklist:"):
             blacklistfile = arg[11:]
-            print "blacklist here", blacklistfile 
+        if arg.startswith("-recentchanges"):
+            recentChanges = True
         elif arg.startswith("-blacklistpage:"):
             blacklistpage = arg[15:]
         elif arg.startswith("-singleword:"):
@@ -578,6 +580,9 @@ def main():
             gen = pagegenerators.PreloadingGenerator(s, pageNumber=NUMBER_PAGES)
             blacklistChecker.simpleReplace(gen, wrong, correct)
         return
+    elif recentChanges:
+            s = pagegenerators.RecentchangesPageGenerator(batchNr)
+            gen = pagegenerators.PreloadingGenerator(s, pageNumber=NUMBER_PAGES)
     elif xmlfile:
         if len(title) != 0:
             title = ' '.join(title)
