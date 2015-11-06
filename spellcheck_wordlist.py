@@ -295,7 +295,7 @@ def collectBlacklistPages(batchNr, gen, badDict):
     return wrongWords, i
 
 def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
-                   doNoninteractive=False):
+                       doNoninteractive=False, pageStore=None):
     from SpellcheckLib import InteractiveWordReplacer
     import xmlreader
 
@@ -306,7 +306,7 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
     ignorePages_page = 'Benutzer:HRoestTypo/Tippfehler/all/ignorePages'
 
     if True:
-        print "Load pages with correct words ... "
+        print "Load pages with correct words and ignored pages ... "
 
         # Load correct words
         mypage = pywikibot.Page(pywikibot.getSite(), correctWords_page)
@@ -319,6 +319,8 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
             tmp.append( spl[1].strip() )
             correctWords[spl[0]] = tmp
 
+        print "loaded %s correct words" % len(correctWords)
+
         # Load ignore pages
         mypage = pywikibot.Page(pywikibot.getSite(), ignorePages_page)
         text = mypage.get()
@@ -326,6 +328,8 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
         ignorePages = []
         for l in lines:
             ignorePages.append(l.strip())
+
+        print "loaded %s ignored pages " % len(ignorePages)
 
         wr.ignorePages = ignorePages
         wr.ignorePerPages = correctWords
@@ -375,8 +379,8 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
         while nrpages == BATCHSIZE:
             res, nrpages = collectBlacklistPagesXML(nrpages, generator, badDict)
 
-            # TODO : cleanup
-            page_name = "Benutzer:HRoestTypo/Tippfehler/20151002/%s" %myIter 
+            # Output page
+            page_name = pageStore + str(myIter)
 
             output = ""
             for r in res:
@@ -482,8 +486,10 @@ def main():
     blacklistpage = None
     category = None
     xmlfile = None
+    pageStore = None
     title = []
     batchNr = 1000
+    non_interactive = False
 
     for arg in pywikibot.handleArgs():
         if arg.startswith("-blacklist:"):
@@ -497,8 +503,12 @@ def main():
             searchWiki = True
         elif arg.startswith("-xmlfile:"):
             xmlfile = arg[9:]
+        elif arg.startswith("-pageStore:"):
+            pageStore = arg[11:]
         elif arg.startswith("-batchNr:"):
             batchNr = int(arg[9:])
+        elif arg.startswith("-non-interactive"):
+            non_interactive = True
         elif arg.startswith("-cat:"):
             category = arg[5:]
         elif arg.startswith('-h') or arg.startswith('--help'):
@@ -530,6 +540,9 @@ def main():
             wordlist[spl[0].lower()] = spl[1].strip().lower()
 
     print "Loaded wordlist of size", len(wordlist)
+    if len(wordlist) == 0:
+        print "Empty wordlist, maybe you forgot something ?"
+        return
 
     # Initiate checker
     blacklistChecker = BlacklistSpellchecker()
@@ -548,7 +561,8 @@ def main():
         else:
             title = ""
 
-        processXMLWordlist(xmlfile, wordlist, breakUntil = title, batchNr=batchNr)
+        processXMLWordlist(xmlfile, wordlist, breakUntil = title, batchNr=batchNr,
+                           doNoninteractive=non_interactive,pageStore=pageStore)
         return
 
     elif category:
