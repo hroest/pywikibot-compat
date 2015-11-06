@@ -243,68 +243,74 @@ class Blacklistchecker():
                 pages.append(p)
         return pages
 
-#
-## Load and store dictionary data from Wikipedia
-# 
-def load_wikipedia(self):
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    myreplace = {}
-    for l in lines:
-        spl =  l.split(' : ')
-        myreplace[spl[0]] = spl[1].strip()
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    mycorrect = []
-    for l in lines:
-        mycorrect.append( l.strip() )
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    mycount = {}
-    for l in lines:
-        spl =  l.split(':')
-        mycount[spl[0].strip()] = int(spl[1].strip() )
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
-    text = mypage.get()
-    lines = text.split('* ')[1:]
-    myreplacedd = {}
-    for l in lines:
-        spl =  l.split(' : ')
-        myreplacedd[spl[0]] = spl[1].strip()
+    #
+    ## Load and store dictionary data from Wikipedia
+    # 
+    def load_wikipedia(self):
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        myreplace = {}
+        for l in lines:
+            spl =  l.split(' : ')
+            if len(spl) != 2:
+               continue
+            myreplace[spl[0]] = spl[1].strip()
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        mycorrect = []
+        for l in lines:
+            mycorrect.append( l.strip() )
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        mycount = {}
+        for l in lines:
+            spl =  l.split(':')
+            if len(spl) != 2:
+               continue
+            mycount[spl[0].strip()] = int(spl[1].strip() )
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
+        text = mypage.get()
+        lines = text.split('* ')[1:]
+        myreplacedd = {}
+        for l in lines:
+            spl =  l.split(' : ')
+            if len(spl) != 2:
+               continue
+            myreplacedd[spl[0]] = spl[1].strip()
 
-    self.replace = myreplace
-    self.noall = mycorrect
-    self.rcount = mycount
-    self.replaceDerivatives = myreplacedd
+        self.replace = myreplace
+        self.noall = mycorrect
+        self.rcount = mycount
+        self.replaceDerivatives = myreplacedd
 
-def store_wikipedia(self):
-    replace = self.replace
-    noall = self.noall
-    rcount = self.rcount
-    replaceDerivatives = self.replaceDerivatives
+    def store_wikipedia(self):
+        replace = self.replace
+        noall = self.noall
+        rcount = self.rcount
+        replaceDerivatives = self.replaceDerivatives
 
-    s = ''
-    for k in sorted(replace.keys()):
-        s += '* %s : %s\n' % (k, replace[k])
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
-    mypage.put_async( s )
-    s = ''
-    for k in sorted(noall):
-        s += '* %s \n' % (k)
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
-    mypage.put_async( s )
-    s = ''
-    for k in sorted(rcount.keys()):
-        if rcount[k] > 0: s += '* %s : %s\n' % (k, rcount[k])
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
-    mypage.put_async( s )
-    s = ''
-    for k in sorted(replaceDerivatives.keys()):
-        s += '* %s : %s\n' % (k, replaceDerivatives[k])
-    mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
-    mypage.put_async( s )
+        s = ''
+        for k in sorted(replace.keys()):
+            s += '* %s : %s\n' % (k, replace[k])
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replaced')
+        mypage.put_async( s )
+        s = ''
+        for k in sorted(noall):
+            s += '* %s \n' % (k)
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/correct')
+        mypage.put_async( s )
+        s = ''
+        for k in sorted(rcount.keys()):
+            if rcount[k] > 0: s += '* %s : %s\n' % (k, rcount[k])
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacCount')
+        mypage.put_async( s )
+        s = ''
+        for k in sorted(replaceDerivatives.keys()):
+            s += '* %s : %s\n' % (k, replaceDerivatives[k])
+        mypage = pywikibot.Page(pywikibot.getSite(), 'User:HRoestTypo/replacedDerivatives')
+        mypage.put_async( s )
 
 
