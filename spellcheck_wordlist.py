@@ -31,6 +31,9 @@ Example usage:
     spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replacedDerivatives -cat:Schweiz
     spellcheck_wordlist.py -blacklistpage:User:HRoestTypo/replacedDerivatives -searchWiki
 
+    spellcheck_wordlist.py -xmlfile:../data/dewiki-latest-pages-articles.xml.bz2 -non-interactive -batchNr:1000 \
+                                -pageStore:Benutzer:HRoestTypo/Tippfehler/20151029/
+
 
 """
 
@@ -63,7 +66,7 @@ class BlacklistSpellchecker(abstract_Spellchecker):
     def __init__(self):
         self.rcount = {}
 
-    def spellcheck_blacklist(self, text, badDict, return_for_db=False, return_words=False):
+    def spellcheck_blacklist(self, text, badDict, return_for_db=False, return_words=False, range_level="moderate"):
         """ Checks a single text against the words in the blacklist and returns
         a list of wrong words.
         """
@@ -71,7 +74,7 @@ class BlacklistSpellchecker(abstract_Spellchecker):
         loc = 0 # the current location in the text we parse
         old_loc = 0
         curr_r = 0
-        ranges = self.forbiddenRanges(text)
+        ranges = self.forbiddenRanges(text, level=range_level)
 
         ranges = sorted(ranges)
         wrongWords = []
@@ -344,12 +347,13 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
             if not page.ns == '0':
                 continue
             # Process page
-            page.words = BlacklistSpellchecker().spellcheck_blacklist(page.text, badDict, return_words=True)
+            page.words = BlacklistSpellchecker().spellcheck_blacklist(page.text, badDict, return_words=True, range_level="full")
             if not len(page.words) == 0: 
                 wrongWords.append(page)
             if batchNr > 0 and i >= batchNr: 
                 break
             i += 1
+            print i, page.title
         return wrongWords, i
 
     # Fast-forward until a certain page
@@ -369,14 +373,13 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
 
     if doNoninteractive:
 
-        BATCHSIZE = 50000
-        nrpages = BATCHSIZE
+        nrpages = batchNr
         myIter = 1
         nr_output = 0
 
         # Noninteractive processing: process all articles in batches (until
         # there are no more pages)
-        while nrpages == BATCHSIZE:
+        while nrpages == batchNr:
             res, nrpages = collectBlacklistPagesXML(nrpages, generator, badDict)
 
             # Output page
