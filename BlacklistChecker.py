@@ -295,25 +295,50 @@ class Blacklistchecker():
         print "Enter numbers separated with a space" 
         for i, wrong in enumerate(candidates): 
             wrong = wrong.decode('utf8')
-            if wrong in self.noall: continue
-            if correct.find(wrong) != -1: continue
+            if wrong in self.noall:
+                continue
+            if correct.find(wrong) != -1:
+                continue
             print i, wrong
-        #
+        
         toignore = pywikibot.input('Ignore?')
-        toignore = [candidates[int(t)].decode('utf8') for t in toignore.split(' ') if t != '']
-        self.noall.extend(toignore)
+
+        # Allow early out
+        if toignore.strip() == "x":
+            return []
+
+        # Allow positive selection (select only words)
+        if toignore.strip() == "*":
+            toignore = pywikibot.input('Select only?')
+            try:
+                tmp = [candidates[int(t)] for t in toignore.split(' ') if t != '']
+                candidates = tmp
+            except ValueError, IndexError:
+                pass
+        else:
+            # Negative selection (ignored words)
+            try:
+                toignore = [candidates[int(t)].decode('utf8') for t in toignore.split(' ') if t != '']
+            except ValueError, IndexError:
+                pass
+
+            self.noall.extend(toignore)
 
         for i, wrong in enumerate(candidates):
             wrong = wrong.decode('utf8')
             if correct.find(wrong) != -1: continue
             if wrong in self.noall: continue
-            s = list(pagegenerators.SearchPageGenerator(wrong, namespaces='0'))
-            print wrong, len(list(s))
-            if len(list(s)) > 90:
-                s = list(pagegenerators.SearchPageGenerator("%s" % wrong, namespaces='0'))
-                print "now we have ", len(s), " found"
-                if len(list(s)) > 90: s = s[:5]
-            for p in s: 
+            searchResult = list(pagegenerators.SearchPageGenerator(wrong, namespaces='0'))
+
+            print wrong, len(list(searchResult))
+            if len(list(searchResult)) > 90:
+                searchResult = list(pagegenerators.SearchPageGenerator("%s" % wrong, namespaces='0'))
+                print "now we have ", len(searchResult), " found"
+
+            if len(list(searchResult)) > 80:
+                searchResult = searchResult[:10]
+
+            for p in searchResult:
                 p.wrong = wrong;
                 p.words = [ SpellcheckLib.WrongWord(wrong, bigword=wrong, correctword=correct) ]
                 print "append page", p
