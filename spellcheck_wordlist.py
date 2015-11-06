@@ -63,7 +63,8 @@ class BlacklistSpellchecker(abstract_Spellchecker):
     def __init__(self):
         self.rcount = {}
 
-    def spellcheck_blacklist(self, text, badDict, return_for_db=False, return_words=False):
+    def spellcheck_blacklist(self, text, badDict, return_for_db=False,
+                             return_words=False, title=None, verbose=False):
         """ Checks a single text against the words in the blacklist and returns
         a list of wrong words.
         """
@@ -76,22 +77,34 @@ class BlacklistSpellchecker(abstract_Spellchecker):
         ranges = sorted(ranges)
         wrongWords = []
         prepare = []
+        j = 0
+
         while True:
             #added "/" to first since sometimes // is in the text
             #added "/" to second since in german some words are compositions
             wordsearch = re.compile(r'([\s\=\<\>\_/-]*)([^\s\=\<\>\_/\-]+)')
             #wordsearch = re.compile(r'([\s\=\<\>\_]*)([^\s\=\<\>\_/\-]+)') #old one
+            if verbose:
+                print "== Start wordsearch at location", loc
             match = wordsearch.search(text,loc)
             LocAdd = 0
+            j = j + 1
 
             if not match:
                 # No more words on this page
                 break
 
+            if verbose:
+                print j, "Check '%s'" % text[ match.start():match.end()], "at loc", loc
+
             # Check if we are in forbidden range
             curr_r, loc, in_nontext = self.check_in_ranges(ranges, 
                                        match.start(), match.end(), curr_r, loc)
-            if in_nontext: 
+
+            if verbose:
+                print "    -> moved loc pointer to ", loc, "skip is", in_nontext
+
+            if in_nontext:
                 continue
 
             # Split the words up at special places like &nbsp; or a dash
@@ -107,15 +120,8 @@ class BlacklistSpellchecker(abstract_Spellchecker):
             bigword = Word(ww)
             smallword = bigword.derive()
 
-
-            verb = False
-            if smallword == "olg" : 
-                verb = True
-                print "aa"
-                print loc
-                print ranges
-                print curr_r
-                print ranges[curr_r]
+            if verbose:
+                print "    ==> smallword", smallword
 
             done = False
             for r in ranges:
