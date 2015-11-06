@@ -15,6 +15,7 @@ class Blacklistchecker():
         self.noall = []
         self.rcount = {}
         self.replaceDerivatives = {}
+        self.replaceNew = {}
         if load:
             self.load_wikipedia()
 
