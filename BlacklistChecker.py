@@ -18,7 +18,7 @@ class Blacklistchecker():
         if load:
             self.load_wikipedia()
 
-    def checkit(self, pages, wrongs, correct, spellchecker):
+    def checkit(self, pages, wrongs, g_correct, spellchecker):
         """
         Takes a list of pages and associated wrong words and goes through them
         one by one.
@@ -28,11 +28,17 @@ class Blacklistchecker():
         replacecount = self.rcount
 
         for i,page in enumerate(pages):
-            print "Starting work on", page.title()
             wrong = wrongs[i]
-            #wrong = wrong.decode('utf8')
-            print wrong, "in self.noall ", wrong in self.noall
-            if wrong in self.noall: continue
+            correct = g_correct
+            if wrong in self.replaceNew:
+                correct = self.replaceNew[wrong]
+
+            print "Starting work on", page.title(), "word:", wrong
+
+            if wrong.lower() in self.noall:
+                print "    Continue (word in ignore)"
+                continue
+
             try:
                 text = page.get()
             except pywikibot.NoPage:
