@@ -239,6 +239,7 @@ class BlacklistSpellchecker(abstract_Spellchecker):
 
         ranges = self.forbiddenRanges(text)
         ranges = sorted(ranges)
+
         wrongWords = []
         for word, replacement in badDict.iteritems():
             word_re = re.compile(word, re.IGNORECASE)
@@ -287,9 +288,11 @@ class BlacklistSpellchecker(abstract_Spellchecker):
                 continue
 
             # First, check whether word is present (allows early exit)
-            wrongwords = self.spellcheck_blacklist(text, {wrong : correct}, return_words=True)
+            wrongwords = self.spellcheck_blacklist(text, {wrong : correct}, return_words=True, title=page.title())
             if len(wrongwords) == 0: 
                 continue
+
+            page.words = wrongwords
 
             InteractiveWordReplacer().processWrongWordsInteractively( [page] )
 
