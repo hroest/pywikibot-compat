@@ -527,20 +527,6 @@ def run_bot(allPages, sp):
 
         orig_text = text
 
-        ran = sp.forbiddenRanges(text)
-
-        choice = "y"
-        if not firstPage:
-            choice = pywikibot.inputChoice('Continue now with the spellcheck?', ['Yes', 'Reload Text', 'Next', 'Edit Text'], ['y', 'r', 'n', 'e'])
-
-        firstPage = False
-        if choice == 'r':
-            text = pywikibot.Page(pywikibot.getSite(), page.title()).get()
-        elif choice == 'n':
-            continue
-        elif choice == 'e':
-            text = spellcheck.saveEditArticle(text)
-
         text = sp.spellcheck(text)
         text = sp.askUser(text, page.title())
 
