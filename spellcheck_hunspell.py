@@ -362,12 +362,101 @@ class HunspellSpellchecker(abstract_Spellchecker):
             #  (h) - if we found it more than once, its probably correct
             #
             if smallword in self._unknown and not smallword in self._encounterOften:
-                print "Skip word encountered multiple times:", smallword
                 self._encounterOften.append(smallword)
                 self._unknown.remove(smallword)
 
+            #
+            #  (i) - if it contains a number
+            #
+            if not done and any(char.isdigit() for char in smallword):
+                done = True
+
+            #
+            #  (j) - if it contains upper case letters after the first (abbreviation or something)
+            #
+            if len(smallword) > 2 and any(char.isupper() for char in smallword[1:]):
+                done = True
+
+            #
+            #  (k) - if it contains a TLD ending
+            #
+            if smallword.endswith(".ch") or smallword.endswith(".de") or \
+               smallword.endswith(".com") or smallword.endswith(".at"):
+                done = True
+
+            #
+            #  (l) - remove some other stuff that is probably not a word in German
+            #
+            if not done and any(char in [u"è", u"ê", u"é", u"ô", "'", '"', 
+                      "+", ".", "&", u"ò", u"ó", u"á", "@", u"í"] for char in smallword):
+                done = True
+
+            #
+            #  (m) - if it is a composition of multiple other words, its probably correct
+            #
+            if not done:
+                for i in range(2, len(smallword)):
+
+                    if done: 
+                        break
+
+                    first_part = smallword[0:i].lower()
+                    if first_part in self.common_words:
+                        other_part = smallword[i:].lower()
+
+                        # We should not trust "endings" that are less than 3 characters lon
+                        #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Grunds.C3.A4tze 
+                        #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Starke_Deklination_der_Adjektive
+                        if len(other_part) < 3:
+                            if other_part in ["n", "r", "s", "e", "en", "er",  "es", 
+                                             "em"]:
+                                done = True
+                            elif other_part in self.common_words:
+                                pass
+
+                        elif other_part in ["ern"]:
+                            pass
+
+                        elif other_part in self.common_words:
+                            done = True
+
+                        elif smallword[i] == "s" and i +1 < len(smallword) and len(first_part) > 2:
+                            # potential "Fugenlaut" in German, see https://de.wikipedia.org/wiki/Fugenlaut
+                            other_part = smallword[i+1:].lower()
+                            if other_part in self.common_words:
+                                done = True
+
+                        # try composite word in German with 1-letter ending
+                        elif other_part[:len(other_part)-1] in self.common_words and \
+                                len(first_part) > 2 and \
+                                len(other_part) > 4 and \
+                                other_part[len(other_part)-1:] in ["n", "r", "s", "e"]:
+                            done = True
+
+                        # try composite word in German with 2-letter ending
+                        elif other_part[:len(other_part)-2] in self.common_words and \
+                                len(first_part) > 2 and \
+                                len(other_part) > 5 and \
+                                other_part[len(other_part)-2:] in ["en", "er",  "es", "em"]:
+                            done = True
+
+
+                        other_part = smallword[i:].lower()
+
+            #
+            #  (n) - skip if they are 3 or less than characters long
+            #
+            if len(smallword) <= 3:
+                done = True
+
             # Return here to save some time
             if done:
+                return
+
+            #
+            #  (o) - skip if they are 3 or less than characters long
+            #
+            if text.count(smallword) > 2:
                 return
 
             #  now we need to get the suggestions from hunspell. This takes
