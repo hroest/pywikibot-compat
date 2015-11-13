@@ -71,11 +71,17 @@ hunspellEncoding = 'ISO-8859-15'
 class HunspellSpellchecker(abstract_Spellchecker):
     """
     Spellchecker class that uses hunspell as a backend
+
+    There are a few parameters:
+        - the minimal word size to be still checked (minimal_word_size)
+        - the tolerance for multiple occurrences in the text word (if the word occurs more than multiple_occurence_tol times, it is considered correct)
     """
 
-    def __init__(self, hunspell_dict, minimal_word_size = 3, nosuggestions=False):
+    def __init__(self, hunspell_dict, minimal_word_size = 3, multiple_occurence_tol = 1, nosuggestions=False):
 
+        self.multiple_occurence_tol = multiple_occurence_tol
         self.minimal_word_size = minimal_word_size
+
         self._nosuggestions = nosuggestions
         self._wordsWithoutSuggestions = []
 
@@ -296,6 +302,12 @@ class HunspellSpellchecker(abstract_Spellchecker):
             if not inWW+len(smallword) >= len(ww):
                 smallword_utf8_next = smallword_utf8 + ww[inWW+len(smallword)].encode('utf8')
 
+            #
+            #  - if we found it more than once, its probably correct
+            #
+            if smallword in self._unknown:
+                self._unknown.remove(smallword)
+
             if self._skipWord(smallword, text, loc, use_alt):
                 return
 
@@ -352,60 +364,59 @@ class HunspellSpellchecker(abstract_Spellchecker):
         #  (a) - Remove common words and words that we found more than once
         #
         if smallword in self.knownwords:
-            done = True
+            return True
 
         if smallword.lower() in self.common_words:
-            done = True
+            return True
+
         elif len(smallword) > 3 and \
           smallword[-1:] == 's' and smallword[:-1].lower() in self.common_words:
-            done = True
-
-        if smallword in self._unknown:
-            done = True
-
+            return True
+        
         #
         #  (b) - we check whether it is less than n characters long
         #
         elif len(smallword) < self.minimal_word_size:
-            done = True
+            return True
 
         #
         #  (f) - we check whether it is following an internal link like [[th]]is
         #
         elif loc > 2 and text[loc-2:loc] == ']]':
-            done = True
+            return True
+
 
         #
-        #  (h) - if we found it more than once, its probably correct
+        #  (o) - skip if the word occurs more than n times in the text
         #
-        if smallword in self._unknown:
-            self._unknown.remove(smallword)
+        if text.count(smallword) > self.multiple_occurence_tol:
+            return True
 
         #
         #  (i) - if it contains a number
         #
         if any(char.isdigit() for char in smallword):
-            done = True
+            return True
 
         #
         #  (j) - if it contains upper case letters after the first (abbreviation or something)
         #
         if len(smallword) > 2 and any(char.isupper() for char in smallword[1:]):
-            done = True
+            return True
 
         #
         #  (k) - if it contains a TLD ending
         #
         if smallword.endswith(".ch") or smallword.endswith(".de") or \
            smallword.endswith(".com") or smallword.endswith(".at"):
-            done = True
+            return True
 
         #
         #  (l) - remove some other stuff that is probably not a word in German
         #
         if any(char in [u"è", u"ê", u"é", u"ô", "'", '"', 
                   "+", ".", "&", u"ò", u"ó", u"á", "@", u"í"] for char in smallword):
-            done = True
+            return True
 
         #
         #  (m) - if it is a composition of multiple other words, its probably correct
@@ -463,12 +474,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
                     other_part = smallword[i:].lower()
 
-        #
-        #  (o) - skip if they are 3 or less than characters long
-        #
-        if text.count(smallword) > 2:
-            return True
-        
         return done
 
     def clearCache(self):
