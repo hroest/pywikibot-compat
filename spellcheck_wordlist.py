@@ -61,6 +61,88 @@ import numpy
 
 NUMBER_PAGES = 60
 
+def doSearchWiki(wordlist, blacklistChecker, pageStore=None):
+
+    # Simple search and replace ...
+    i = 0
+
+    correctWords_page = 'Benutzer:HRoestTypo/Tippfehler/all/correctWords'
+
+    ignorePages_page = 'Benutzer:HRoestTypo/Tippfehler/all/ignorePages'
+    wr = InteractiveWordReplacer()
+    loadPagesWiki(wr, correctWords_page, ignorePages_page)
+
+    UPDATE_EVERY = 1000
+
+    nr_output = 0
+    output = ""
+    for wrong, correct in wordlist.iteritems():
+        i += 1
+
+        wrong_lower = wrong.lower()
+
+        print "== Replace %s with %s" % (wrong, correct), "(%s out of %s)" % (i, len(wordlist))
+        s = pagegenerators.SearchPageGenerator(wrong, number=NUMBER_PAGES, namespaces='0')
+        gen = pagegenerators.PreloadingGenerator(s, pageNumber=NUMBER_PAGES)
+
+        # If we have no page to store our results, we probably want an interactive search and replace 
+        if pageStore is None:
+            print "Simple search and reaplce ... "
+            blacklistChecker.simpleReplace(gen, wrong_lower, correct)
+            continue
+
+        for page in gen:
+
+            try:
+                text = page.get()
+            except pywikibot.NoPage:
+                pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+                continue
+            except pywikibot.IsRedirectPage:
+                pywikibot.output(u"%s is a redirect, skip!" % page.title())
+                continue
+
+            # First, check whether word is present (allows early exit)
+            wrongwords = blacklistChecker.spellcheck_blacklist(
+                text, {wrong : correct}, return_words=True, title=page.title())
+
+            if len(wrongwords) == 0: 
+                continue
+
+            title = page.title()
+
+            # Skip pages
+            if title in wr.ignorePages: 
+                continue
+
+            # for w in page.words:
+            if True:
+                w = WrongWord(wrong, correctword=correct)
+
+                # Skip specific words
+                if title in wr.ignorePerPages and \
+                   w.word in wr.ignorePerPages[title]: continue
+
+                wrong = w.word
+                correct = w.correctword
+
+                if len(wrong) == 0:
+                    continue
+                if wrong.lower() == correct.lower():
+                    continue
+                
+                if wrong[0].lower() != wrong[0]:
+                    # upper case
+                    correct = correct[0].upper() + correct[1:]
+
+                output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" %  (title, w.word, correct)
+                nr_output += 1
+
+        if i % UPDATE_EVERY == 0:
+            print "put page with content:", output
+            mypage = pywikibot.Page(pywikibot.getSite(), pageStore)
+            mypage.put(output,  u'Update' )
+
 def writeTyposToWikipedia(res, page_name):
     output = ""
     for r in res:
@@ -740,12 +822,8 @@ def main():
     blacklistChecker = BlacklistSpellchecker()
 
     if searchWiki:
-        # Simple search and replace ...
-        for wrong, correct in wordlist.iteritems():
-            print "== Replace %s with %s" % (wrong, correct)
-            s = pagegenerators.SearchPageGenerator(wrong, namespaces='0')
-            gen = pagegenerators.PreloadingGenerator(s, pageNumber=NUMBER_PAGES)
-            blacklistChecker.simpleReplace(gen, wrong, correct)
+
+        doSearchWiki(wordlist, blacklistChecker)
         return
     elif recentChanges:
             s = pagegenerators.RecentchangesPageGenerator(batchNr)
