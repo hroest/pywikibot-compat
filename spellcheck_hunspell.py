@@ -473,6 +473,14 @@ class HunspellSpellchecker(abstract_Spellchecker):
         
         return done
 
+    def clearCache(self):
+        """
+        Clears cache and prepares for a new page
+        """
+
+        self._unknown_words = []
+        self._unknown = []
+
     def _check_with_hunspell(self, word, useAlternative):
         return self.hunspell.spell(word) or \
                 (useAlternative and self.hunspell_alternative is not None 
@@ -502,8 +510,7 @@ def run_bot(allPages, sp):
         text = sp.spellcheck(text)
         text = sp.askUser(text, page.title())
 
-        sp._unknown_words = []
-        sp._unknown = []
+        sp.clearCache()
 
         if text == orig_text:
             continue
