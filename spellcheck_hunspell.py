@@ -65,8 +65,6 @@ from spellcheck import edit, endpage
 from SpellcheckLib import abstract_Spellchecker
 from SpellcheckLib import CallbackObject
 
-correct_html_codes = False
-
 hunspellEncoding = 'ISO-8859-15'
 
 class HunspellSpellchecker(abstract_Spellchecker):
@@ -79,6 +77,10 @@ class HunspellSpellchecker(abstract_Spellchecker):
         self.minimal_word_size = minimal_word_size
         self._nosuggestions = nosuggestions
         self._wordsWithoutSuggestions = []
+
+        self.correct_html_codes = False
+
+        self.knownwords = {}
 
         self._unknown = []
         self._unknown_words = []
@@ -185,14 +187,16 @@ class HunspellSpellchecker(abstract_Spellchecker):
         else:
             return text
 
-    def spellcheck(self, text):
+    def spellcheck(self, text, forceAlternative=True):
         """Uses hunspell to replace wrongly written words in a given text.
 
         Returns the corrected text.
         """
 
-        if correct_html_codes:
+        if self.correct_html_codes:
             text = removeHTML(text)
+
+        print "got list of common words of length", len(self.common_words)
 
         loc = 0
 
@@ -258,7 +262,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
             loc += LocAdd
 
         # We are done with all words
-        if correct_html_codes:
+        if self.correct_html_codes:
             text = removeHTML(text)
 
         return text
