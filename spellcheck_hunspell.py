@@ -369,28 +369,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
             done = True
 
         #
-        #  (c) - we check whether it is at the beginning of a sentence and
-        #  thus should be capitalized
-        #
-        elif loc > 2 and text[loc -2:loc-1] == '.':
-            if self._check_with_hunspell(smallword_utf8[0].lower() + smallword_utf8[1:], use_alt):
-                done = True
-
-        #
-        #  (d) - we check whether it is correct when the previous character
-        #  is taken into account
-        #
-        elif self._check_with_hunspell(smallword_utf8_prev, use_alt):
-            done = True
-
-        #
-        #  (e) - we check whether it is correct when the following
-        #  character is taken into account
-        #
-        elif self._check_with_hunspell(smallword_utf8_next, use_alt):
-            done = True
-
-        #
         #  (f) - we check whether it is following an internal link like [[th]]is
         #
         elif loc > 2 and text[loc-2:loc] == ']]':
