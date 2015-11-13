@@ -137,7 +137,7 @@ def cap(string):
     return string[0].upper() + string[1:]
 
 
-def askAlternative(bigword, context=None, title='', replaceBy=None,):
+def askAlternative(bigword, knownwords = {}, newwords = [], context=None, title='', replaceBy=None,correct_html_codes=False):
     word = bigword.derive()
     correct = None
     pywikibot.output(u"=" * 60)
@@ -279,7 +279,7 @@ def spellcheck(page, checknames=True, knownonly=False, title=''):
         smallword = bigword.derive()
         if not Word(smallword).isCorrect(checkalternative=knownonly) and \
            (checknames or not smallword[0].isupper()):
-            replacement = askAlternative(bigword,
+            replacement = askAlternative(bigword, knownwords=knownwords,
                                          context=text[max(0,loc-40):loc + len(match.group(2))+40],
                                          title=title)
             if replacement == edit:
