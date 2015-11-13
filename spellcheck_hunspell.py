@@ -545,6 +545,9 @@ def run_bot(allPages, sp):
             Callbacks.append(callb)
             page.put_async(text, comment="kleine Verbesserungen, Rechtschreibung", callback=callb)
 
+    for k, v in sp.knownwords.iteritems():
+        print "* %s : %s" % (k,v)
+
 def main():
     ###################################################################
     #                           MAIN                                  #
