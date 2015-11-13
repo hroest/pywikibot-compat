@@ -567,8 +567,9 @@ def main():
     category = None
     checklang = None
     dictionary = None
+    common_words = None
     nosuggestions = False
-
+    correct_html_codes = False
     for arg in pywikibot.handleArgs():
         if arg.startswith("-start:"):
             start = arg[7:]
@@ -576,9 +577,10 @@ def main():
             category = arg[5:]
         elif arg.startswith("-dictionary:"):
             dictionary = arg[12:]
-            print "get ditct:", dictionary
         elif arg.startswith("-newpages"):
             newpages = True
+        elif arg.startswith("-common_words:"):
+            common_words = arg[14:]
         elif arg.startswith("-longpages"):
             longpages = True
         elif arg.startswith("-nosugg"):
@@ -597,6 +599,15 @@ def main():
 
     sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions)
     sp.nosuggestions = nosuggestions
+
+    common_words_dict = set([])
+    if common_words is not None:
+        f = open(common_words)
+        for l in f:
+            common_words_dict.add(l.strip().decode("utf8").lower())
+
+    sp.common_words = common_words_dict
+    sp.correct_html_codes = correct_html_codes
 
     if start:
         gen = pagegenerators.PreloadingGenerator(
