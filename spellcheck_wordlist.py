@@ -61,6 +61,34 @@ import numpy
 
 NUMBER_PAGES = 60
 
+def loadPagesWiki(wr, correctWords_page, ignorePages_page):
+    # Load correct words
+    mypage = pywikibot.Page(pywikibot.getSite(), correctWords_page)
+    text = mypage.get()
+    lines = text.split('* ')[1:]
+    correctWords = {}
+    for l in lines:
+        spl =  l.split(' : ')
+        tmp = correctWords.get( spl[0], [] )
+        tmp.append( spl[1].strip() )
+        correctWords[spl[0]] = tmp
+
+    print "loaded %s correct words" % len(correctWords)
+
+    # Load ignore pages
+    mypage = pywikibot.Page(pywikibot.getSite(), ignorePages_page)
+    text = mypage.get()
+    lines = text.split('* ')[1:]
+    ignorePages = []
+    for l in lines:
+        ignorePages.append(l.strip())
+
+    print "loaded %s ignored pages " % len(ignorePages)
+
+    wr.ignorePages = ignorePages
+    wr.ignorePerPages = correctWords
+
+
 class BlacklistSpellchecker(abstract_Spellchecker):
     """ Blacklist based spellchecker
 
@@ -360,31 +388,7 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
     if True:
         print "Load pages with correct words and ignored pages ... "
 
-        # Load correct words
-        mypage = pywikibot.Page(pywikibot.getSite(), correctWords_page)
-        text = mypage.get()
-        lines = text.split('* ')[1:]
-        correctWords = {}
-        for l in lines:
-            spl =  l.split(' : ')
-            tmp = correctWords.get( spl[0], [] )
-            tmp.append( spl[1].strip() )
-            correctWords[spl[0]] = tmp
-
-        print "loaded %s correct words" % len(correctWords)
-
-        # Load ignore pages
-        mypage = pywikibot.Page(pywikibot.getSite(), ignorePages_page)
-        text = mypage.get()
-        lines = text.split('* ')[1:]
-        ignorePages = []
-        for l in lines:
-            ignorePages.append(l.strip())
-
-        print "loaded %s ignored pages " % len(ignorePages)
-
-        wr.ignorePages = ignorePages
-        wr.ignorePerPages = correctWords
+        loadPagesWiki(wr, correctWords_page, ignorePages_page)
 
     def collectBlacklistPagesXML(batchNr, gen, badDict):
         """Collect all wrong words in the provided page generator.
