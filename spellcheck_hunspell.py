@@ -606,6 +606,19 @@ def main():
         for l in f:
             common_words_dict.add(l.strip().decode("utf8").lower())
 
+    f = open("../spellcheck/lists/de/cbbnomcgdf-17166212131-e9u79o.txt")
+    for i,l in enumerate(f):
+        german = l.split("\t")[0]
+        german = german.split("{")[0].strip()
+        german = german.split("[")[0].strip()
+        # comment
+        if german.startswith("#"): continue
+        # full phrases
+        if german.startswith('"'): continue
+        gwords = [g.replace("(", "").replace(")", "").decode("utf8").lower() for g in german.split()]
+        # update ...
+        common_words_dict.update(gwords)
+
     sp.common_words = common_words_dict
     sp.correct_html_codes = correct_html_codes
 
