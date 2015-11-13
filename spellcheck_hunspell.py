@@ -217,6 +217,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         # Wordsearch using regex
         wordsearch = re.compile(r'([\s\=\<\>\_]*)([^\s\=\<\>\_/\-]+)')
 
+        nr_words = 0
         while True:
 
             match = wordsearch.search(text, loc)
@@ -229,6 +230,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
                 print "----------------------"
                 print "Time suggesting of total time %0.4f%% " % (
                     self.time_suggesting *100.0 / (time.time() - starttime) )
+                print "Number of words", nr_words
                 break
 
             curr_r, loc, in_nontext = self.check_in_ranges(
@@ -236,6 +238,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
             if in_nontext:
                 continue
 
+            nr_words += 1
             # Split the words up at special places like &nbsp; or – (these will
             # usually not be found in the dictionary)
             spl = re.split('&nbsp;', match.group(2))
