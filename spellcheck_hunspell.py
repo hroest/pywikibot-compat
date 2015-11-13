@@ -30,6 +30,7 @@ Command-line options:
 -html          change HTML-entities like &uuml; into their respective letters.
                This is done both before and after the normal check.
 -dictionary:   Location of the hunspell dictionary (-dictionary:/usr/share/hunspell/de_DE).
+-common_words: Location of a file with common words
 """
 
 """
