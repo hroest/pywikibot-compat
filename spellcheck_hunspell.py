@@ -115,7 +115,9 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
     def askUser(self, text, title):
         """Interactive part of the spellcheck() function.
+
         It uses the unknown words found before to make suggestions:
+
             - self._unknown_words
             - self._wordsWithoutSuggestions
 
@@ -295,7 +297,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
             if not inWW+len(smallword) >= len(ww):
                 smallword_utf8_next = smallword_utf8 + ww[inWW+len(smallword)].encode('utf8')
 
-            if self._skipWord(smallword, text, loc, smallword_utf8, smallword_utf8_next, smallword_utf8_prev, use_alt):
+            if self._skipWord(smallword, text, loc, use_alt):
                 return
 
             #  now we need to get the suggestions from hunspell. This takes
@@ -339,7 +341,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
         return 
 
-    def _skipWord(self, smallword, text, loc, smallword_utf8, smallword_utf8_next, smallword_utf8_prev, use_alt):
+    def _skipWord(self, smallword, text, loc, use_alt):
         
         done = False
 
@@ -372,16 +374,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
         #  (f) - we check whether it is following an internal link like [[th]]is
         #
         elif loc > 2 and text[loc-2:loc] == ']]':
-            done = True
-
-        #
-        #  (g) - we check whether it is a (german) genitive case and
-        #  exist in this form in our whitelist, which is without trailing
-        #  "es" or "s"
-        #
-        elif len(smallword) > 3 and \
-          (smallword[-2:] == 'es' and self._check_with_hunspell(smallword_utf8[:-2], use_alt)) or \
-          (smallword[-1:] == 's' and self._check_with_hunspell(smallword_utf8[:-1], use_alt)):
             done = True
 
         #
@@ -472,12 +464,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
                         done = True
 
                     other_part = smallword[i:].lower()
-
-        #
-        #  (n) - skip if they are 3 or less than characters long
-        #
-        if len(smallword) <= 3:
-            done = True
 
         #
         #  (o) - skip if they are 3 or less than characters long
@@ -576,7 +562,7 @@ def main():
         # This is a purely interactive bot, we therefore do not want to put-throttle
         pywikibot.put_throttle.setDelay(1)
 
-    sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions)
+    sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions, minimal_word_size=4)
     sp.nosuggestions = nosuggestions
 
     common_words_dict = set([])
