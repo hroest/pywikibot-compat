@@ -133,13 +133,15 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
                 LocAdd = len(word)
                 if site == -1:
-                    pywikibot.output(u"\03{lightred}error\03{default}, could" +
-                                     "not find \"%s\" anymore" % w)
                     continue
-                replacement = askAlternative(bigword,
+                    # pywikibot.output(u"\03{lightred}error\03{default}, could " +
+                    #                  "not find \"%s\" anymore" % w)
+                    # continue
+                replacement = askAlternative(bigword, knownwords=self.knownwords,
                                              title=title,
                                              replaceBy=self._replaceBy,
-                                             context=text[max(0,site-55):site+len(w)+55])
+                                             context=text[max(0,site-55):site+len(w)+55], 
+                                             correct_html_codes=self.correct_html_codes)
 
                 if replacement == edit:
                     newtxt = self.saveEditArticle(text, jumpIndex = 0, highlight = w)
