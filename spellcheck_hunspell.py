@@ -510,8 +510,11 @@ def run_bot(allPages, sp):
     Callbacks = []
     stillSkip  = False;
     firstPage = True
+
+    page_nr = 0
     for page in allPages:
-        print(page);
+        print "Performing spellcheck on page %s (%s pages processd so far)" % (page.title(), page_nr)
+        page_nr += 1
 
         try:
             text = page.get()
