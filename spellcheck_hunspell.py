@@ -211,7 +211,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         schweiz_search = "<!--schweizbezogen-->"
         match = re.search(schweiz_search, text)
         useCH = False
-        if match:
+        if match or forceAlternative:
             useCH = True
 
         # For bookkeeping
