@@ -100,6 +100,14 @@ class HunspellSpellchecker(abstract_Spellchecker):
                 self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
             else:
                 print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
+        elif hunspell_dict[-2:] == "US":
+            hunspell_alt = hunspell_dict[:-2] + "GB"
+            import os.path
+            if os.path.isfile(hunspell_alt + ".dic"):
+                self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
+                print "found alternative dictionary ....", hunspell_alt + ".dic"
+            else:
+                print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
 
     def askUser(self, text, title):
         """Interactive part of the spellcheck() function.
