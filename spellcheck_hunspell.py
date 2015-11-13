@@ -87,7 +87,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
         self._unknown = []
         self._unknown_words = []
 
-        self._encounterOften = []
         self._replaceBy = {}
 
         self._init_hunspell(hunspell_dict)
@@ -361,7 +360,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
           smallword[-1:] == 's' and smallword[:-1].lower() in self.common_words:
             done = True
 
-        if smallword in self._unknown or smallword in self._encounterOften:
+        if smallword in self._unknown:
             done = True
 
         #
@@ -379,8 +378,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         #
         #  (h) - if we found it more than once, its probably correct
         #
-        if smallword in self._unknown and not smallword in self._encounterOften:
-            self._encounterOften.append(smallword)
+        if smallword in self._unknown:
             self._unknown.remove(smallword)
 
         #
