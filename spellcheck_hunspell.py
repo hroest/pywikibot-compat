@@ -81,6 +81,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         self.correct_html_codes = False
 
         self.knownwords = {}
+        self.common_words = set([])
 
         self._unknown = []
         self._unknown_words = []
@@ -293,13 +294,23 @@ class HunspellSpellchecker(abstract_Spellchecker):
             if not inWW+len(smallword) >= len(ww):
                 smallword_utf8_next = smallword_utf8 + ww[inWW+len(smallword)].encode('utf8')
 
+
             #  If hunspell doesn't know it, doesn't mean it is not correct
             #  This not only reduces the number of words considered to be
             #  incorrect but also makes it much faster since the feature
             #  hunspell.suggest takes most time (~6x speedup).
 
-            #  (a) - Remove words that we found more than once
+            #  (a) - Remove common words and words that we found more than once
             #
+            if smallword in self.knownwords:
+                done = True
+
+            if smallword.lower() in self.common_words:
+                done = True
+            elif len(smallword) > 3 and \
+              smallword[-1:] == 's' and smallword[:-1].lower() in self.common_words:
+                done = True
+
             if smallword in self._unknown or smallword in self._encounterOften:
                 done = True
 
