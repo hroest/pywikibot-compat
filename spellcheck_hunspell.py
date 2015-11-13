@@ -431,8 +431,8 @@ def run_bot(allPages, sp):
         text = sp.spellcheck(text)
         text = sp.askUser(text, page.title())
 
-        sp.unknown = []
-        sp.unknown_words = []
+        sp._unknown_words = []
+        sp._unknown = []
 
         if text == orig_text:
             continue
