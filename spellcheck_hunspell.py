@@ -68,6 +68,132 @@ from SpellcheckLib import CallbackObject
 
 hunspellEncoding = 'ISO-8859-15'
 
+class RuleBasedWordAnalyzer():
+
+    def __init__(self, minimal_word_size, multiple_occurence_tol, language, common_words):
+
+        self.minimal_word_size = minimal_word_size
+        self.multiple_occurence_tol = multiple_occurence_tol
+        self.language = language
+        self.common_words = common_words
+
+    def skipWord(self, smallword, text, loc, use_alt):
+        
+        #  If hunspell doesn't know it, doesn't mean it is not correct
+        #  This not only reduces the number of words considered to be
+        #  incorrect but also makes it much faster since the feature
+        #  hunspell.suggest takes most time (~6x speedup).
+
+        #  (a) - Remove common words and words that we found more than once
+        #
+        if smallword.lower() in self.common_words:
+            return True
+
+        if len(smallword) > 3 and \
+          smallword[-1:] == 's' and smallword[:-1].lower() in self.common_words:
+            return True
+        
+        #
+        #  (b) - we check whether it is less than n characters long
+        #
+        if len(smallword) < self.minimal_word_size:
+            return True
+
+        #
+        #  (c) - we check whether it is following an internal link like [[th]]is
+        #
+        if loc > 2 and text[loc-2:loc] == ']]':
+            return True
+
+
+        #
+        #  (d) - skip if the word occurs more than n times in the text
+        #
+        if text.count(smallword) > self.multiple_occurence_tol:
+            return True
+
+        #
+        #  (e) - if it contains a number
+        #
+        if any(char.isdigit() for char in smallword):
+            return True
+
+        #
+        #  (f) - if it contains upper case letters after the first (abbreviation or something)
+        #
+        if len(smallword) > 2 and any(char.isupper() for char in smallword[1:]):
+            return True
+
+        #
+        #  (g) - if it contains a TLD ending
+        #
+        if smallword.endswith(".ch") or smallword.endswith(".de") or \
+           smallword.endswith(".com") or smallword.endswith(".at"):
+            return True
+
+        #
+        #  (h) - remove some other stuff that is probably not a word in German
+        #
+        if self.language == "GER" and any(char in [u"è", u"ê", u"é", u"ô", "'", '"', 
+                  "+", ".", "&", u"ò", u"ó", u"á", "@", u"í"] for char in smallword):
+            return True
+
+        #
+        #  (i) - if it is a composition of multiple other words, its probably correct
+        #
+        if self.language == "GER":
+            for i in range(2, len(smallword)):
+
+                first_part = smallword[0:i].lower()
+                if first_part in self.common_words:
+                    other_part = smallword[i:].lower()
+
+                    # We should not trust "endings" that are less than 3 characters lon
+                    #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Grunds.C3.A4tze 
+                    #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Starke_Deklination_der_Adjektive
+                    if len(other_part) < 3:
+                        if other_part in ["n", "r", "s", "e", "en", "er",  "es", 
+                                         "em"]:
+                            print "Skip word according to German declension", smallword[0:i], "+", smallword[i:]
+                            return True
+
+                        elif other_part in self.common_words:
+                            print "SPECIAL: strange ending!!!: ", "composite word", smallword[0:i], "+", smallword[i:]
+                            pass
+
+                    elif other_part in ["ern"]:
+                        pass
+
+                    elif other_part in self.common_words:
+                        return True
+
+                    elif smallword[i] == "s" and i +1 < len(smallword) and len(first_part) > 2:
+                        # potential "Fugenlaut" in German, see https://de.wikipedia.org/wiki/Fugenlaut
+                        other_part = smallword[i+1:].lower()
+                        if other_part in self.common_words:
+                            print "skip composite word", smallword[0:i], "+s+", smallword[i+1:]
+                            return True
+
+                    # try composite word in German with 1-letter ending
+                    elif other_part[:len(other_part)-1] in self.common_words and \
+                            len(first_part) > 2 and \
+                            len(other_part) > 4 and \
+                            other_part[len(other_part)-1:] in ["n", "r", "s", "e"]:
+                        print "SPECIAL: skip composite word", smallword[0:i], "+", smallword[i:]
+                        return True
+
+                    # try composite word in German with 2-letter ending
+                    elif other_part[:len(other_part)-2] in self.common_words and \
+                            len(first_part) > 2 and \
+                            len(other_part) > 5 and \
+                            other_part[len(other_part)-2:] in ["en", "er",  "es", "em"]:
+                        print "SPECIAL: skip composite word 2", smallword[0:i], "+", smallword[i:]
+                        return True
+
+                    other_part = smallword[i:].lower()
+
+        return False
+
 class HunspellSpellchecker(abstract_Spellchecker):
     """
     Spellchecker class that uses hunspell as a backend
@@ -79,24 +205,21 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
     def __init__(self, hunspell_dict, minimal_word_size = 3, 
                  multiple_occurence_tol = 1, nosuggestions=False, 
-                 language="GER"):
-
-        self.multiple_occurence_tol = multiple_occurence_tol
-        self.minimal_word_size = minimal_word_size
+                 language="GER", common_words = set([])):
 
         self._nosuggestions = nosuggestions
         self._wordsWithoutSuggestions = []
-        self._language = language
 
         self.correct_html_codes = False
 
         self.knownwords = {}
-        self.common_words = set([])
 
         self._unknown = []
         self._unknown_words = []
 
         self._replaceBy = {}
+
+        self._wordAnalyzer = RuleBasedWordAnalyzer(minimal_word_size, multiple_occurence_tol, language, common_words)
 
         self._init_hunspell(hunspell_dict)
 
@@ -208,8 +331,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
         if self.correct_html_codes:
             text = removeHTML(text)
 
-        print "got list of common words of length", len(self.common_words)
-
         loc = 0
 
         # Get ranges
@@ -318,7 +439,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
             if smallword in self.knownwords:
                 return
 
-            if self._skipWord(smallword, text, loc, use_alt):
+            if self._wordAnalyzer.skipWord(smallword, text, loc, use_alt):
                 return
 
             #  now we need to get the suggestions from hunspell. This takes
@@ -361,123 +482,6 @@ class HunspellSpellchecker(abstract_Spellchecker):
                 self._unknown_words.append(bigword);
 
         return 
-
-    def _skipWord(self, smallword, text, loc, use_alt):
-        
-        #  If hunspell doesn't know it, doesn't mean it is not correct
-        #  This not only reduces the number of words considered to be
-        #  incorrect but also makes it much faster since the feature
-        #  hunspell.suggest takes most time (~6x speedup).
-
-        #  (a) - Remove common words and words that we found more than once
-        #
-        if smallword.lower() in self.common_words:
-            return True
-
-        if len(smallword) > 3 and \
-          smallword[-1:] == 's' and smallword[:-1].lower() in self.common_words:
-            return True
-        
-        #
-        #  (b) - we check whether it is less than n characters long
-        #
-        if len(smallword) < self.minimal_word_size:
-            return True
-
-        #
-        #  (c) - we check whether it is following an internal link like [[th]]is
-        #
-        if loc > 2 and text[loc-2:loc] == ']]':
-            return True
-
-
-        #
-        #  (d) - skip if the word occurs more than n times in the text
-        #
-        if text.count(smallword) > self.multiple_occurence_tol:
-            return True
-
-        #
-        #  (e) - if it contains a number
-        #
-        if any(char.isdigit() for char in smallword):
-            return True
-
-        #
-        #  (f) - if it contains upper case letters after the first (abbreviation or something)
-        #
-        if len(smallword) > 2 and any(char.isupper() for char in smallword[1:]):
-            return True
-
-        #
-        #  (g) - if it contains a TLD ending
-        #
-        if smallword.endswith(".ch") or smallword.endswith(".de") or \
-           smallword.endswith(".com") or smallword.endswith(".at"):
-            return True
-
-        #
-        #  (h) - remove some other stuff that is probably not a word in German
-        #
-        if self._language == "GER" and any(char in [u"è", u"ê", u"é", u"ô", "'", '"', 
-                  "+", ".", "&", u"ò", u"ó", u"á", "@", u"í"] for char in smallword):
-            return True
-
-        #
-        #  (i) - if it is a composition of multiple other words, its probably correct
-        #
-        if self._language == "GER":
-            for i in range(2, len(smallword)):
-
-                first_part = smallword[0:i].lower()
-                if first_part in self.common_words:
-                    other_part = smallword[i:].lower()
-
-                    # We should not trust "endings" that are less than 3 characters lon
-                    #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Grunds.C3.A4tze 
-                    #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Starke_Deklination_der_Adjektive
-                    if len(other_part) < 3:
-                        if other_part in ["n", "r", "s", "e", "en", "er",  "es", 
-                                         "em"]:
-                            print "Skip word according to German declension", smallword[0:i], "+", smallword[i:]
-                            return True
-
-                        elif other_part in self.common_words:
-                            print "SPECIAL: strange ending!!!: ", "composite word", smallword[0:i], "+", smallword[i:]
-                            pass
-
-                    elif other_part in ["ern"]:
-                        pass
-
-                    elif other_part in self.common_words:
-                        return True
-
-                    elif smallword[i] == "s" and i +1 < len(smallword) and len(first_part) > 2:
-                        # potential "Fugenlaut" in German, see https://de.wikipedia.org/wiki/Fugenlaut
-                        other_part = smallword[i+1:].lower()
-                        if other_part in self.common_words:
-                            print "skip composite word", smallword[0:i], "+s+", smallword[i+1:]
-                            return True
-
-                    # try composite word in German with 1-letter ending
-                    elif other_part[:len(other_part)-1] in self.common_words and \
-                            len(first_part) > 2 and \
-                            len(other_part) > 4 and \
-                            other_part[len(other_part)-1:] in ["n", "r", "s", "e"]:
-                        print "SPECIAL: skip composite word", smallword[0:i], "+", smallword[i:]
-                        return True
-
-                    # try composite word in German with 2-letter ending
-                    elif other_part[:len(other_part)-2] in self.common_words and \
-                            len(first_part) > 2 and \
-                            len(other_part) > 5 and \
-                            other_part[len(other_part)-2:] in ["en", "er",  "es", "em"]:
-                        print "SPECIAL: skip composite word 2", smallword[0:i], "+", smallword[i:]
-                        return True
-
-                    other_part = smallword[i:].lower()
-
-        return False
 
     def clearCache(self):
         """
@@ -575,9 +579,6 @@ def main():
         # This is a purely interactive bot, we therefore do not want to put-throttle
         pywikibot.put_throttle.setDelay(1)
 
-    sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions, minimal_word_size=4)
-    sp.nosuggestions = nosuggestions
-
     common_words_dict = set([])
     if common_words is not None:
         f = open(common_words)
@@ -597,8 +598,9 @@ def main():
         # update ...
         common_words_dict.update(gwords)
 
-    sp.common_words = common_words_dict
+    sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions, minimal_word_size=4, common_words=common_words_dict)
     sp.correct_html_codes = correct_html_codes
+    sp.nosuggestions = nosuggestions
 
     if start:
         gen = pagegenerators.PreloadingGenerator(
