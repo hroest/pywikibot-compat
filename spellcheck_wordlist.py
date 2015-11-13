@@ -61,6 +61,42 @@ import numpy
 
 NUMBER_PAGES = 60
 
+def writeTyposToWikipedia(res, page_name):
+    output = ""
+    for r in res:
+        # {{User:HRoestTypo/V/Typo|Johann Heinrich Zedler|Maerialien|Materialien}}
+        page = r
+        title = page.title
+
+        # Skip pages
+        if title in wr.ignorePages: 
+            continue
+
+        for w in page.words:
+
+            # Skip specific words
+            if title in wr.ignorePerPages and \
+               w.word in wr.ignorePerPages[title]: continue
+
+            wrong = w.word
+            correct = w.correctword
+
+            if len(wrong) == 0:
+                continue
+            if wrong.lower() == correct.lower():
+                continue
+            
+            if wrong[0].lower() != wrong[0]:
+                # upper case
+                correct = correct[0].upper() + correct[1:]
+
+            output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" %  (title, w.word, correct)
+            nr_output += 1
+
+    mypage = pywikibot.Page(pywikibot.getSite(), page_name)
+    mypage.put(output,  u'Update' )
+    myIter += 1
+
 def loadPagesWiki(wr, correctWords_page, ignorePages_page):
     # Load correct words
     mypage = pywikibot.Page(pywikibot.getSite(), correctWords_page)
@@ -438,40 +474,7 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
             # Output page
             page_name = pageStore + str(myIter)
 
-            output = ""
-            for r in res:
-                # {{User:HRoestTypo/V/Typo|Johann Heinrich Zedler|Maerialien|Materialien}}
-                page = r
-                title = page.title
-
-                # Skip pages
-                if title in wr.ignorePages: 
-                    continue
-
-                for w in page.words:
-
-                    # Skip specific words
-                    if title in wr.ignorePerPages and \
-                       w.word in wr.ignorePerPages[title]: continue
-
-                    wrong = w.word
-                    correct = w.correctword
-
-                    if len(wrong) == 0:
-                        continue
-                    if wrong.lower() == correct.lower():
-                        continue
-                    
-                    if wrong[0].lower() != wrong[0]:
-                        # upper case
-                        correct = correct[0].upper() + correct[1:]
-
-                    output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" %  (title, w.word, correct)
-                    nr_output += 1
-
-            mypage = pywikibot.Page(pywikibot.getSite(), page_name)
-            mypage.put(output,  u'Update' )
-            myIter += 1
+            writeTyposToWikipedia(res, page_name)
 
         print "Write number of wrong words", nr_output
         return
