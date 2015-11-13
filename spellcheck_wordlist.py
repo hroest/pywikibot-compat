@@ -603,11 +603,6 @@ def main():
             spl =  l.split(' : ')
             wordlist[spl[0].lower()] = spl[1].strip().lower()
 
-    print "Loaded wordlist of size", len(wordlist)
-    if len(wordlist) == 0:
-        print "Empty wordlist, maybe you forgot something ?"
-        return
-
     if typopage:
         mypage = pywikibot.Page(pywikibot.getSite(), typopage)
         text = mypage.get()
@@ -734,6 +729,11 @@ def main():
                 print "* %s : %s" % (k, v)
 
         print wr.dontReplace
+        return
+
+    print "Loaded wordlist of size", len(wordlist)
+    if len(wordlist) == 0:
+        print "Empty wordlist, maybe you forgot something ?"
         return
 
     # Initiate checker
