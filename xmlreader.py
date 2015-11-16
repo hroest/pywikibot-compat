@@ -68,7 +68,7 @@ class XmlEntry:
                  editRestriction, moveRestriction, revisionid, comment,
                  redirect):
         # TODO: there are more tags we can read.
-        self.title = title
+        self._title = title
         self.ns = ns
         self.id = id
         self.text = text
@@ -80,6 +80,12 @@ class XmlEntry:
         self.revisionid = revisionid
         self.comment = comment
         self.isredirect = redirect
+
+    def title(self):
+        return self._title
+
+    def get(self):
+        return self.text
 
 
 class XmlHeaderEntry:
