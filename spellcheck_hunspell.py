@@ -57,6 +57,7 @@ import wikipedia as pywikibot
 import pagegenerators
 import time
 
+import xmlreader
 import pagegenerators, catlib
 
 from spellcheck import SpecialTerm, distance, getalternatives, cap, uncap
@@ -65,6 +66,8 @@ from spellcheck import edit, endpage
 
 from SpellcheckLib import abstract_Spellchecker
 from SpellcheckLib import CallbackObject
+
+from SpellcheckLib import InteractiveWordReplacer
 
 hunspellEncoding = 'ISO-8859-15'
 
@@ -147,6 +150,7 @@ class RuleBasedWordAnalyzer():
 
                 first_part = smallword[0:i].lower()
                 if first_part in self.common_words:
+                    ## print "found firs part", first_part
                     other_part = smallword[i:].lower()
 
                     # We should not trust "endings" that are less than 3 characters lon
@@ -163,6 +167,7 @@ class RuleBasedWordAnalyzer():
                             pass
 
                     elif other_part in ["ern"]:
+                        print "SPECIAL: strange ending ern !!!: "
                         pass
 
                     elif other_part in self.common_words:
@@ -259,7 +264,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         orig_len = len(text) +1 #plus one because of trailing \np
         for word in self._unknown_words:
             w = word.derive()
-            if w in self._wordsWithoutSuggestions: pywikibot.output(u"\03{lightred}\"%s\"\03{default}" % w +
+            if False and w in self._wordsWithoutSuggestions: pywikibot.output(u"\03{lightred}\"%s\"\03{default}" % w +
                 u" skipped because no suggestions were found --> it is " +
                     u"assumed to be a name " );
             else:
@@ -362,7 +367,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
             match = wordsearch.search(text, loc)
             LocAdd = 0
-            if not match:
+            if not match and False:
                 # No more words on this page
                 print "=" * 75
                 print "Time suggesting %0.4f s" % self.time_suggesting
@@ -408,9 +413,12 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
     def _spellcheck_word(self, text, smallword, bigword, ww, loc, LocAdd, use_alt):
         """ Spellcheck a single word
+
+                self._unknown_words.append(bigword);
         """
 
         done = False
+
         try:
             smallword_encoded = smallword.encode(hunspellEncoding)
         except UnicodeEncodeError as s: 
@@ -523,16 +531,30 @@ class HunspellSpellchecker(abstract_Spellchecker):
                 (useAlternative and self.hunspell_alternative is not None 
                  and self.hunspell_alternative.spell(word)) 
 
-def run_bot(allPages, sp):
+def run_bot(allPages, sp, pageStore=None):
     Callbacks = []
     stillSkip  = False;
     firstPage = True
+    nonInteractive = True
+
+    wr = InteractiveWordReplacer()
+    # loadPagesWiki(wr, correctWords_page, ignorePages_page)
+    output = ""
+
+    if pageStore is None:
+        nonInteractive = False
+
+    UPDATE_EVERY = 10000
+    # UPDATE_EVERY = 100
+    update_nr = 1
 
     page_nr = 0
     for page in allPages:
+
         print "Performing spellcheck on page %s (%s pages processd so far)" % (page.title(), page_nr)
         page_nr += 1
 
+        st = time.time()
         try:
             text = page.get()
         except pywikibot.NoPage:
@@ -542,12 +564,57 @@ def run_bot(allPages, sp):
             pywikibot.output(u"%s is a redirect, skip!" % page.title())
             continue
 
+        # print "get pg time: ", time.time() - st
+
+        st = time.time()
         orig_text = text
 
-        text = sp.spellcheck(text)
-        text = sp.askUser(text, page.title())
+        text, wrongWords = sp.spellcheck(text)
+
+        if not nonInteractive:
+            text = sp.askUser(text, page.title())
+        else:
+            # print "got wrong words here", len(wrongWords)
+
+            if page_nr % UPDATE_EVERY == 0:
+                # print "put output", output
+                curr_page = pageStore + str(update_nr)
+                mypage = pywikibot.Page(pywikibot.getSite(), curr_page)
+                mypage.put(output,  u'Update' )
+                update_nr += 1
+                output = ""
+
+            # skip pages without wrong words ... 
+            if len(wrongWords) == 0: 
+                sp.clearCache()
+                continue
+
+            title = page.title()
+            for w in wrongWords:
+
+                # Skip specific words
+                if title in wr.ignorePerPages and \
+                   w.word in wr.ignorePerPages[title]: continue
+
+                wrong = w.word
+                wrong = w.derive()
+                correct = ""
+                correct = w.correctword
+
+                if len(wrong) == 0:
+                    continue
+                if wrong.lower() == correct.lower():
+                    continue
+                
+                if wrong[0].lower() != wrong[0] and len(correct) > 0:
+                    # upper case
+                    correct = correct[0].upper() + correct[1:]
+
+                output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" %  (title, w.derive(), correct)
 
         sp.clearCache()
+
+        # print "analysis time: ", time.time() - st
 
         if text == orig_text:
             continue
@@ -578,10 +645,14 @@ def main():
     dictionary = None
     common_words = None
     nosuggestions = False
+    pageStore = None
     correct_html_codes = False
+    xmlfile = False
     for arg in pywikibot.handleArgs():
         if arg.startswith("-start:"):
             start = arg[7:]
+        elif arg.startswith("-xmlfile:"):
+            xmlfile = arg[9:]
         elif arg.startswith("-cat:"):
             category = arg[5:]
         elif arg.startswith("-dictionary:"):
@@ -596,6 +667,8 @@ def main():
             nosuggestions = True
         elif arg.startswith("-html"):
             correct_html_codes = True
+        elif arg.startswith("-pageStore:"):
+            pageStore = arg[11:]
         elif arg.startswith('-h') or arg.startswith('--help'):
             pywikibot.showHelp()
             return
@@ -607,23 +680,39 @@ def main():
         pywikibot.put_throttle.setDelay(1)
 
     common_words_dict = set([])
-    if common_words is not None:
-        f = open(common_words)
-        for l in f:
-            common_words_dict.add(l.strip().decode("utf8").lower())
 
-    f = open("../spellcheck/lists/de/cbbnomcgdf-17166212131-e9u79o.txt")
-    for i,l in enumerate(f):
-        german = l.split("\t")[0]
-        german = german.split("{")[0].strip()
-        german = german.split("[")[0].strip()
-        # comment
-        if german.startswith("#"): continue
-        # full phrases
-        if german.startswith('"'): continue
-        gwords = [g.replace("(", "").replace(")", "").decode("utf8").lower() for g in german.split()]
-        # update ...
-        common_words_dict.update(gwords)
+    if True:
+        if common_words is not None:
+            f = open(common_words)
+            for l in f:
+                common_words_dict.add(l.strip().decode("utf8").lower())
+
+        print "got data of size", len(common_words_dict)
+        f = open("../spellcheck/output_de.txt")
+        for i,l in enumerate(f):
+            common_words_dict.add(l.strip().decode("utf8").lower())
+        print "got data of size", len(common_words_dict)
+        f = open("../spellcheck/output_en.txt")
+        for i,l in enumerate(f):
+            common_words_dict.add(l.strip().decode("utf8").lower())
+        print "got data of size", len(common_words_dict)
+
+        f = open("../spellcheck/lists/de/cbbnomcgdf-17166212131-e9u79o.txt")
+        for i,l in enumerate(f):
+            german = l.split("\t")[0]
+            german = german.split("{")[0].strip()
+            german = german.split("[")[0].strip()
+            # comment
+            if german.startswith("#"): continue
+            # full phrases
+            if german.startswith('"'): continue
+            gwords = [g.replace("(", "").replace(")", "").decode("utf8").lower() for g in german.split()]
+            # update ...
+            common_words_dict.update(gwords)
+
+        print "got data of size", len(common_words_dict)
+
+
 
     sp = HunspellSpellchecker(hunspell_dict = dictionary, nosuggestions = nosuggestions, minimal_word_size=4, common_words=common_words_dict)
     sp.correct_html_codes = correct_html_codes
@@ -632,6 +721,9 @@ def main():
     if start:
         gen = pagegenerators.PreloadingGenerator(
             pagegenerators.AllpagesPageGenerator(start=start,includeredirects=False))
+    elif xmlfile:
+        print "reading xml file", xmlfile
+        gen = xmlreader.XmlDump(xmlfile).parse()
     elif newpages:
         def wrapper_gen():
             for (page, length) in pywikibot.getSite().newpages(500):
@@ -654,9 +746,11 @@ def main():
         #Examples
         site = pywikibot.getSite()
         cat = catlib.Category(site,'Kategorie:Staat in Europa')
-        gen = pagegenerators.CategorizedPageGenerator(cat)
+        cat = catlib.Category(site,'Kategorie:Schweizer')
+        cgen = pagegenerators.CategorizedPageGenerator(cat)
+        gen = pagegenerators.PreloadingGenerator(cgen)
 
-    run_bot(gen, sp)
+    run_bot(gen, sp, pageStore=pageStore)
 
 if __name__ == "__main__":
     try:
