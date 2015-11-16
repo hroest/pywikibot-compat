@@ -210,9 +210,9 @@ class HunspellSpellchecker(abstract_Spellchecker):
                  language="GER", common_words = set([])):
 
         self._nosuggestions = nosuggestions
-        self._wordsWithoutSuggestions = []
-
         self.correct_html_codes = False
+
+        self._wordsWithoutSuggestions = []
 
         self.knownwords = {}
 
@@ -370,6 +370,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
                 print "Time suggesting of total time %0.4f%% " % (
                     self.time_suggesting *100.0 / (time.time() - starttime) )
                 print "Number of words", nr_words
+            if not match:
                 break
 
             curr_r, loc, in_nontext = self.check_in_ranges(
