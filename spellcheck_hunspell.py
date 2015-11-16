@@ -480,14 +480,32 @@ class HunspellSpellchecker(abstract_Spellchecker):
                     if sugg[i] == smallword:
                         done = True
 
+                if len(sugg) > 0:
+                    bigword.correctword = sugg[0]
+                else:
+                    bigword.correctword = u""
+
             #######################################################
             #So now we know whether we have found the word or not #
             #######################################################
             if not done:
                 bigword.suggestions = sugg
                 bigword.location = loc
+
+                try:
+                    import Levenshtein
+
+                    lratio = Levenshtein.ratio(bigword.correctword, smallword)
+                    ldist = Levenshtein.distance(bigword.correctword, smallword)
+                    if lratio < 0.7 or ldist > 5:
+                        return
+
+                except ImportError:
+                    pass
+
                 self._unknown.append(smallword);
                 self._unknown_words.append(bigword);
+                return bigword
 
         return 
 
