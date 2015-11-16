@@ -357,6 +357,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         wordsearch = re.compile(r'([\s\=\<\>\_]*)([^\s\=\<\>\_/\-]+)')
 
         nr_words = 0
+        wrongWords = []
         while True:
 
             match = wordsearch.search(text, loc)
@@ -392,7 +393,9 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
             loc += len(match.group(1))
 
-            self._spellcheck_word(text, smallword, bigword, ww, loc, LocAdd, useCH)
+            w = self._spellcheck_word(text, smallword, bigword, ww, loc, LocAdd, useCH)
+            if w is not None:
+                wrongWords.append(w)
 
             # proceed to the next location
             loc += LocAdd
@@ -401,7 +404,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
         if self.correct_html_codes:
             text = removeHTML(text)
 
-        return text
+        return text, wrongWords
 
     def _spellcheck_word(self, text, smallword, bigword, ww, loc, LocAdd, use_alt):
         """ Spellcheck a single word
