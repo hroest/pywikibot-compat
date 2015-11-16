@@ -413,8 +413,10 @@ class HunspellSpellchecker(abstract_Spellchecker):
         done = False
         try:
             smallword_encoded = smallword.encode(hunspellEncoding)
-        except UnicodeEncodeError: 
-            print "UnicodeEncodeError: ", smallword
+        except UnicodeEncodeError as s: 
+            # There are some unicode characters that we cannot render in ISO
+            # 8859 and these will throw an error here.
+            # Nothing left to do ...
             return
 
         smallword_utf8 = smallword.encode('utf8')
