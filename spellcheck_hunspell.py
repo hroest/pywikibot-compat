@@ -516,6 +516,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
         self._unknown_words = []
         self._unknown = []
+        self._wordsWithoutSuggestions = []
 
     def _check_with_hunspell(self, word, useAlternative):
         return self.hunspell.spell(word) or \
