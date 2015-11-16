@@ -115,7 +115,8 @@ class RuleBasedWordAnalyzer():
         #
         #  (e) - if it contains a number
         #
-        if any(char.isdigit() for char in smallword):
+        if any(char.isdigit() for char in smallword) or \
+           any(char in [")", "("] for char in smallword):
             return True
 
         #
@@ -139,7 +140,7 @@ class RuleBasedWordAnalyzer():
             return True
 
         #
-        #  (i) - if it is a composition of multiple other words, its probably correct
+        #  (i) - in German only: if it is a composition of multiple other words, its probably correct
         #
         if self.language == "GER":
             for i in range(2, len(smallword)):
@@ -171,7 +172,7 @@ class RuleBasedWordAnalyzer():
                         # potential "Fugenlaut" in German, see https://de.wikipedia.org/wiki/Fugenlaut
                         other_part = smallword[i+1:].lower()
                         if other_part in self.common_words:
-                            print "skip composite word", smallword[0:i], "+s+", smallword[i+1:]
+                            # print "skip composite word", smallword[0:i], "+s+", smallword[i+1:]
                             return True
 
                     # try composite word in German with 1-letter ending
@@ -201,6 +202,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
     There are a few parameters:
         - the minimal word size to be still checked (minimal_word_size)
         - the tolerance for multiple occurrences in the text word (if the word occurs more than multiple_occurence_tol times, it is considered correct)
+        - whether to use the "suggestions" feature of hunspell 
     """
 
     def __init__(self, hunspell_dict, minimal_word_size = 3, 
