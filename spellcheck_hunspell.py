@@ -79,6 +79,7 @@ class RuleBasedWordAnalyzer():
         self.multiple_occurence_tol = multiple_occurence_tol
         self.language = language
         self.common_words = common_words
+        self.composite_minlen = 3
 
     def skipWord(self, smallword, text, loc, use_alt):
         
@@ -175,6 +176,10 @@ class RuleBasedWordAnalyzer():
 
                 first_part = smallword[0:i].lower()
 
+                # TODO make this a parameter ... 
+                if len(first_part) <= self.composite_minlen: 
+                    continue
+
                 if first_part in self.common_words:
                     other_part = smallword[i:].lower()
 
@@ -203,6 +208,9 @@ class RuleBasedWordAnalyzer():
                     elif self.language == "DE" and other_part in ["ern"]:
                         print "SPECIAL: strange ending ern !!!: "
                         pass
+
+                    elif len(other_part) < self.composite_minlen:
+                        continue
 
                     elif other_part in self.common_words:
                         print "skip composite word", smallword[0:i].encode("utf8"), smallword[i:].encode("utf8")
