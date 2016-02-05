@@ -593,17 +593,48 @@ def NewpagesPageGenerator(number=100, repeat=False, site=None, namespace=0):
         yield item[0]
 
 
+class _RecentChangesGenerator(object):
+
+
+    def __init__(self):
+        self.do_continue = None
+
+    def get(self, number, site, nobots=False, cont=None):
+        for item in site.recentchanges(number=number, nobots=nobots, rccontinue=cont):
+            yield item[0]
+        self.do_continue = item[6]
+
 def RecentchangesPageGenerator(number=100, site=None, nobots=False):
     """Generate pages that are in the recent changes list.
 
     @param number: iterate no more than this number of entries
 
     """
+    rc = _RecentChangesGenerator()
+
     if site is None:
         site = pywikibot.getSite()
-    for item in site.recentchanges(number=number, nobots=nobots):
-        yield item[0]
 
+    i = 0
+
+    # Calculate batch number
+    batch_number = number
+    if number < 0: 
+        batch_number = 100
+
+    # Iterate over first batch
+    for item in rc.get(batch_number, site):
+        i += 1
+        yield item
+
+    # While we have not reached the total number, get new pages
+    while True:
+        if number > 0 and i > number:
+            break
+
+        for item in rc.get(batch_number, site, nobots=nobots, cont=rc.do_continue):
+            i += 1
+            yield item
 
 def FileLinksGenerator(referredImagePage):
     for page in referredImagePage.usingPages():

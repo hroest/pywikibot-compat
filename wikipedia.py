@@ -8158,7 +8158,7 @@ sysopnames['%s']['%s']='name' to your user-config.py"""
     def recentchanges(self, number=100, rcstart=None, rcend=None, rcshow=None,
                       rcdir='older', rctype='edit|new', namespace=None,
                       includeredirects=True, repeat=False, user=None,
-                      returndict=False, nobots=False, revision=False):
+                      returndict=False, nobots=False, revision=False, rccontinue=None):
         """
         Yield recent changes as Page objects
         uses API call:
@@ -8236,6 +8236,8 @@ sysopnames['%s']['%s']='name' to your user-config.py"""
             params['rcshow'] = rcshow
         if rctype:
             params['rctype'] = rctype
+        if rccontinue:
+            params['rccontinue'] = rccontinue
 
         if revision:
             keyseen = 'revid'
@@ -8243,12 +8245,15 @@ sysopnames['%s']['%s']='name' to your user-config.py"""
             keyseen = 'pageid'
 
         seen = set()
+
         while True:
             data = query.GetData(params, self)
             if 'error' in data:
                 raise RuntimeError('%s' % data['error'])
             try:
                 rcData = data['query']['recentchanges']
+
+                continue_data = data['continue']["rccontinue"]
             except KeyError:
                 raise ServerError(
                     "The APIs don't return data, the site may be down")
@@ -8266,7 +8271,7 @@ sysopnames['%s']['%s']='name' to your user-config.py"""
                         if 'comment' in i:
                             comment = i['comment']
                         yield (page, i['timestamp'], i['newlen'], True,
-                               i['user'], comment)
+                               i['user'], comment, continue_data)
             if not repeat:
                 break
 
