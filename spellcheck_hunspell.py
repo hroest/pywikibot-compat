@@ -742,15 +742,18 @@ def main():
             for l in f:
                 common_words_dict.add(l.strip().decode("utf8").lower())
 
-        print "got data of size", len(common_words_dict)
+        print "got data of size", len(common_words_dict), "from supplied file"
+
+        # Get article titles as correct words
         f = open("../spellcheck/output_de.txt")
         for i,l in enumerate(f):
             common_words_dict.add(l.strip().decode("utf8").lower())
-        print "got data of size", len(common_words_dict)
+        print "got data of size", len(common_words_dict), "from de titles"
+
         f = open("../spellcheck/output_en.txt")
         for i,l in enumerate(f):
             common_words_dict.add(l.strip().decode("utf8").lower())
-        print "got data of size", len(common_words_dict)
+        print "got data of size", len(common_words_dict), "from en titles"
 
         f = open("../spellcheck/lists/de/cbbnomcgdf-17166212131-e9u79o.txt")
         for i,l in enumerate(f):
@@ -765,7 +768,7 @@ def main():
             # update ...
             common_words_dict.update(gwords)
 
-        print "got data of size", len(common_words_dict)
+        print "got data of size", len(common_words_dict), "from extra source"
 
     sp = HunspellSpellchecker(hunspell_dict = dictionary,
                               nosuggestions = nosuggestions,
