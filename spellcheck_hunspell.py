@@ -159,6 +159,17 @@ class RuleBasedWordAnalyzer():
         #
         #  (j) skip composite words
         #
+        if self.language == "EN":
+            if smallword.startswith("de") and smallword[2:] in self.common_words:
+                print "EN can skip composite word", smallword.encode("utf8")
+                return True
+            if smallword.startswith("re") and smallword[2:] in self.common_words:
+                print "EN can skip composite word", smallword.encode("utf8")
+                return True
+            if smallword.endswith("ization") and smallword[:-7] in self.common_words:
+                print "EN can skip composite word", smallword.encode("utf8")
+                return True
+
         if self.language == "DE" or self.language == "EN":
             for i in range(2, len(smallword)):
 
@@ -166,6 +177,14 @@ class RuleBasedWordAnalyzer():
 
                 if first_part in self.common_words:
                     other_part = smallword[i:].lower()
+
+                    if self.language == "EN":
+                        if other_part in ["ly"]:
+                            print "Skip English composite word ending with ly: ", smallword.encode("utf8")
+                            return True
+                        elif other_part in self.common_words:
+                            print "Skip English composite word", smallword[0:i].encode("utf8"), smallword[i:].encode("utf8")
+                            return True
 
                     # We should not trust "endings" that are less than 3 characters long
                     #   Some of them are allowed in German, so we should explicitely include them
