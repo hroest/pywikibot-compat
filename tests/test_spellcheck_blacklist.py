@@ -118,6 +118,19 @@ def getTestCaseKarel4():
         *# Rustige Zomeravond
         """
 
+def getTestSammlungVarnhagen():
+    """ This test checks early abort of quotes
+
+    https://de.wikipedia.org/w/index.php?title=Sammlung_Varnhagen&oldid=149875696
+    """
+
+    return u"""
+
+        * „Meine Sorgfalt für alles Litterarische ist doch eigentlich nur Gleichgültigkeit für dieses; denn es gilt mir nur als bewahrende Schale eines darin liegenden Lebenskernes, und wo nur irgend ein solcher mich anglänzt, möcht' ich jene Schale schützend um ihn her legen! Es geht nothwendigerweise so viel verloren, laßt uns einiges zu retten suchen! laßt uns Bäume pflanzen, die Schatten geben!“
+        Karl August Varnhagen von Ense: ''Tagebücher''. F. A. Brockhaus, Leipzig 1861, Bd. 2, S. 351 f.
+        '
+        """
+
 def getTestCaseSchilcher():
     return u"""
         {{Dieser Artikel|behandelt den österreichischen Rotwein. Für Personen gleichen Namens siehe [[Schilcher (Begriffsklärung)]].}}
@@ -345,6 +358,11 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
 
         result = sp.spellcheck_blacklist(getTestCaseFrieden(), {'positiver' : 'wrong'})
         assert len(result) == 0
+
+    def test_spellcheck_blacklist_7(self):
+
+        result = self.sp.spellcheck_blacklist(getTestSammlungVarnhagen(), {'nothwendigerweise' : 'wrong'})
+        # assert len(result) == 0
 
     def test_spellcheck_blacklist_detail(self):
         text = u"testtext with mistake&nbsp;and more words"
