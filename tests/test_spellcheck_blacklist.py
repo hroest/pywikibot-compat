@@ -167,14 +167,16 @@ class SpellcheckWordParse(unittest.TestCase):
     def test_words_pietismus(self):
 
         result = self.sp.spellcheck_blacklist(getTestCaseLit(), {'positiver' : 'wrong'}, return_for_db=True)
-        assert len(result) == 15, len(result)
-        assert result ==  [u'Literatur', u'Tobias', u'Burg', u'M\xfcnster', u'zur', u'Signatur', u'von', u'Werken', u'der', u'Bildenden', u'Kunst', u'Angelika', u'Seibt', u'Beck', u'M\xfcnchen']
+        assert len(result) == 16, len(result)
+        assert result ==  [u'Literatur', u'Tobias', u'Burg', u'M\xfcnster', u'zur', u'Signatur', u'von', u'Werken', u'der', u'Bildenden', u'Kunst', u'Angelika', u'Seibt', u'Beck', u'M\xfcnchen', u'Weblinks']
 
         mypage = pywikibot.Page(pywikibot.getSite(), 'Unterschrift')
         text = mypage.getOldVersion(128568384)
         result = self.sp.spellcheck_blacklist(text, {'positiver' : 'wrong'}, return_for_db=True)
-        assert len(result) == 1833, len(result)
+        assert len(result) == 1892, len(result)
 
+        result = self.sp.spellcheck_blacklist(text, {'positiver' : 'wrong'}, return_for_db=True, range_level="full")
+        assert len(result) == 1666, len(result)
 
         result = self.sp.spellcheck_blacklist(getTestCasePietismus(), {'positiver' : 'wrong'}, return_for_db=True)
         assert len(result) == 27, len(result)
@@ -343,7 +345,7 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
 
         sp = self.sp
 
-        result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'schil' : 'wrong'})
+        result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'schil' : 'wrong'}, range_level="full")
         assert len(result) == 0
 
         result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'weins' : 'wrong'})
