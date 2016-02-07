@@ -599,17 +599,24 @@ def run_bot(allPages, sp, pageStore=None):
     page_nr = 0
     for page in allPages:
 
-        print "Performing spellcheck on page %s (%s pages processd so far)" % (page.title(), page_nr)
+        try:
+            if not page.ns == '0': continue
+            text = page.get()
+            page_title = page.title
+        except AttributeError:
+            page_title = page.title()
+
+        print "Performing spellcheck on page %s (%s pages processed so far)" % (page_title.encode("utf8"), page_nr)
         page_nr += 1
 
         st = time.time()
         try:
             text = page.get()
         except pywikibot.NoPage:
-            pywikibot.output(u"%s doesn't exist, skip!" % page.title())
+            pywikibot.output(u"%s doesn't exist, skip!" % page_title)
             continue
         except pywikibot.IsRedirectPage:
-            pywikibot.output(u"%s is a redirect, skip!" % page.title())
+            pywikibot.output(u"%s is a redirect, skip!" % page_title)
             continue
 
         # print "get pg time: ", time.time() - st
@@ -620,7 +627,7 @@ def run_bot(allPages, sp, pageStore=None):
         text, wrongWords = sp.spellcheck(text)
 
         if not nonInteractive:
-            text = sp.askUser(text, page.title())
+            text = sp.askUser(text, page_title)
         else:
             # print "got wrong words here", len(wrongWords)
 
@@ -637,12 +644,11 @@ def run_bot(allPages, sp, pageStore=None):
                 sp.clearCache()
                 continue
 
-            title = page.title()
             for w in wrongWords:
 
                 # Skip specific words
-                if title in wr.ignorePerPages and \
-                   w.word in wr.ignorePerPages[title]: continue
+                if page_title in wr.ignorePerPages and \
+                   w.word in wr.ignorePerPages[page_title]: continue
 
                 wrong = w.word
                 wrong = w.derive()
@@ -658,7 +664,7 @@ def run_bot(allPages, sp, pageStore=None):
                     # upper case
                     correct = correct[0].upper() + correct[1:]
 
-                output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" %  (title, w.derive(), correct)
+                output += "{{User:HRoestTypo/V/Typo|%s|%s|%s}}\n" % (page_title, w.derive(), correct)
 
         sp.clearCache()
 
