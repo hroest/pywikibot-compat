@@ -7746,7 +7746,17 @@ sysopnames['%s']['%s']='name' to your user-config.py"""
         Use API when enabled use_api and version >= 1.11,
         or use Special:Search.
         """
-        if self.has_api() and self.versionnumber() >= 11:
+        try:
+            for r in self.search_(key, number=10, namespaces=None, useAPI=True):
+                yield r
+        except NotImplementedError:
+            print "Got error raised! Try without API"
+            for r in self.search_(key, number=10, namespaces=None, useAPI=False):
+                yield r
+
+    def search_(self, key, number=10, namespaces=None, useAPI=True):
+        import re
+        if self.has_api() and useAPI and self.versionnumber() >= 11:
             #Yield search results (using api) for query.
             params = {
                 'action': 'query',
@@ -7778,8 +7788,18 @@ sysopnames['%s']['%s']='name' to your user-config.py"""
                     offset += 1
                     page = Page(self, s['title'])
                     if self.versionnumber() >= 16:
-                        yield (page, s['snippet'], '', s['size'],
-                               s['wordcount'], s['timestamp'])
+                        # Search in returned snipped and ensure that we actually found the match
+                        sn = s["snippet"]
+                        import re
+                        wordsearch = re.compile(r'<span class="searchmatch">([^<]*)</span>')
+                        match = wordsearch.search(sn)
+                        if match:
+                            if match.group(1) == key:
+
+                                yield (page, s['snippet'], '', s['size'],
+                                       s['wordcount'], s['timestamp'])
+                        else:
+                            print "Something went wrong, no match", sn
                     else:
                         yield page, '', '', '', '', ''
         else:
