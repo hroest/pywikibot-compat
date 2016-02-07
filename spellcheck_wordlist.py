@@ -143,8 +143,10 @@ def doSearchWiki(wordlist, blacklistChecker, pageStore=None):
             mypage = pywikibot.Page(pywikibot.getSite(), pageStore)
             mypage.put(output,  u'Update' )
 
-def writeTyposToWikipedia(res, page_name):
+def writeTyposToWikipedia(res, wr, page_name):
     output = ""
+
+    nr_output = 0
     for r in res:
         # {{User:HRoestTypo/V/Typo|Johann Heinrich Zedler|Maerialien|Materialien}}
         page = r
@@ -177,7 +179,7 @@ def writeTyposToWikipedia(res, page_name):
 
     mypage = pywikibot.Page(pywikibot.getSite(), page_name)
     mypage.put(output,  u'Update' )
-    myIter += 1
+    return nr_output
 
 def loadPagesWiki(wr, correctWords_page, ignorePages_page):
     # Load correct words
@@ -497,6 +499,8 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
     from SpellcheckLib import InteractiveWordReplacer
     import xmlreader
 
+    print "Breakuntil '%s' " % breakUntil
+
     wr = InteractiveWordReplacer()
     generator = xmlreader.XmlDump(xmlfile).parse()
 
@@ -556,7 +560,9 @@ def processXMLWordlist(xmlfile, badDict, batchNr = 3000, breakUntil = '',
             # Output page
             page_name = pageStore + str(myIter)
 
-            writeTyposToWikipedia(res, page_name)
+            nr_output += writeTyposToWikipedia(res, wr, page_name)
+
+            myIter += 1
 
         print "Write number of wrong words", nr_output
         return
@@ -835,7 +841,7 @@ def main():
             title = ""
 
         processXMLWordlist(xmlfile, wordlist, breakUntil = title, batchNr=batchNr,
-                           doNoninteractive=non_interactive,pageStore=pageStore)
+                           doNoninteractive=non_interactive, pageStore=pageStore)
         return
 
     elif category:
