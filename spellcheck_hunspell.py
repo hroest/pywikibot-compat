@@ -282,20 +282,30 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
         self._wordAnalyzer = RuleBasedWordAnalyzer(minimal_word_size, multiple_occurence_tol, language, stringent, common_words, composite_minlen)
 
-        self._init_hunspell(hunspell_dict)
+        self._init_hunspell(hunspell_dict, language)
 
     def _init_hunspell(self, hunspell_dict):
         self.mysite = pywikibot.getSite()
         self.hunspell = hunspell.HunSpell(hunspell_dict + ".dic", hunspell_dict + ".aff")
         self.hunspell_alternative = None
-        if hunspell_dict[-2:] == "DE":
-            # Alternative for de is de_ch (swiss spellchecker)
-            hunspell_alt = hunspell_dict[:-2] + "CH"
-            import os.path
-            if os.path.isfile(hunspell_alt + ".dic"):
-                self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
+        if language == "DE":
+            if hunspell_dict[-2:] == "DE":
+                # Alternative for de is de_ch (swiss spellchecker)
+                hunspell_alt = hunspell_dict[:-2] + "CH"
+                import os.path
+                if os.path.isfile(hunspell_alt + ".dic"):
+                    self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
+                else:
+                    print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
             else:
-                print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
+                # Guess some location
+                hunspell_alt = "/usr/share/hunspell/de_CH"
+                import os.path
+                if os.path.isfile(hunspell_alt + ".dic"):
+                    self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
+                else:
+                    print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
+
         elif hunspell_dict[-2:] == "US":
             hunspell_alt = hunspell_dict[:-2] + "GB"
             import os.path
