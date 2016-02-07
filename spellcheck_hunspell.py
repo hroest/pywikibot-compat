@@ -80,6 +80,7 @@ class RuleBasedWordAnalyzer():
         self.language = language
         self.common_words = common_words
         self.composite_minlen = 3
+        self.stringent = -1
 
     def skipWord(self, smallword, text, loc, use_alt):
         
@@ -87,6 +88,9 @@ class RuleBasedWordAnalyzer():
         #  This not only reduces the number of words considered to be
         #  incorrect but also makes it much faster since the feature
         #  hunspell.suggest takes most time (~6x speedup).
+
+        if self.stringent > 1000:
+            return False
 
         #  (a) - Remove common words and words that we found more than once
         #
@@ -102,6 +106,9 @@ class RuleBasedWordAnalyzer():
         #
         if len(smallword) < self.minimal_word_size:
             return True
+
+        if self.stringent > 500:
+            return False
 
         #
         #  (c) - we check whether it is following an internal link like [[th]]is
@@ -171,12 +178,12 @@ class RuleBasedWordAnalyzer():
                 print "EN can skip composite word", smallword.encode("utf8")
                 return True
 
-        if self.language == "DE" or self.language == "EN":
+        # print self.stringent
+        if (self.language == "DE" or self.language == "EN") and self.stringent < 60:
             for i in range(2, len(smallword)):
 
                 first_part = smallword[0:i].lower()
 
-                # TODO make this a parameter ... 
                 if len(first_part) <= self.composite_minlen: 
                     continue
 
@@ -229,9 +236,6 @@ class RuleBasedWordAnalyzer():
                             len(first_part) > 2 and \
                             len(other_part) > 4 and \
                             other_part[len(other_part)-1:] in ["n", "r", "s", "e"]:
-                        # print first_part in self.common_words
-                        # print "first_part", first_part
-                        # print other_part[:len(other_part)-1] in self.common_words
                         print "SPECIAL: skip composite word (1 letter)", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
                         return True
 
