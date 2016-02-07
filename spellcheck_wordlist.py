@@ -637,7 +637,7 @@ def main():
     for arg in pywikibot.handleArgs():
         if arg.startswith("-blacklist:"):
             blacklistfile = arg[11:]
-        if arg.startswith("-recentchanges"):
+        elif arg.startswith("-recentchanges"):
             recentChanges = True
         elif arg.startswith("-blacklistpage:"):
             blacklistpage = arg[15:]
