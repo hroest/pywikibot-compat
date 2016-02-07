@@ -711,9 +711,13 @@ def main():
     correct_html_codes = False
     xmlfile = False
     language = "DE"
+    stringent = 0
+    composite_minlen = 0
     for arg in pywikibot.handleArgs():
         if arg.startswith("-start:"):
             start = arg[7:]
+        elif arg.startswith("-stringent:"):
+            stringent = int(arg[11:])
         elif arg.startswith("-xmlfile:"):
             xmlfile = arg[9:]
         elif arg.startswith("-cat:"):
@@ -726,6 +730,9 @@ def main():
             common_words = arg[14:]
         elif arg.startswith("-longpages"):
             longpages = True
+        elif arg.startswith("-minlen:"):
+            composite_minlen = int(arg[8:])
+            print "minlen", composite_minlen 
         elif arg.startswith("-nosugg"):
             nosuggestions = True
         elif arg.startswith("-language"):
@@ -758,16 +765,28 @@ def main():
 
         print "got data of size", len(common_words_dict), "from supplied file"
 
-        # Get article titles as correct words
-        f = open("../spellcheck/output_de.txt")
-        for i,l in enumerate(f):
-            common_words_dict.add(l.strip().decode("utf8").lower())
-        print "got data of size", len(common_words_dict), "from de titles"
+        if stringent < 55:
 
-        f = open("../spellcheck/output_en.txt")
-        for i,l in enumerate(f):
-            common_words_dict.add(l.strip().decode("utf8").lower())
-        print "got data of size", len(common_words_dict), "from en titles"
+            # Get article titles as correct words
+            f = open("../spellcheck/output_de.txt")
+            for i,l in enumerate(f):
+                w = l.strip().decode("utf8")
+                if len(w) < 4 and any ([ww.isupper() for ww in w]):
+                    pass
+                    # continue
+                common_words_dict.add(w.lower())
+            print "got data of size", len(common_words_dict), "from de titles"
+
+        if stringent < 50:
+
+            f = open("../spellcheck/output_en.txt")
+            for i,l in enumerate(f):
+                w = l.strip().decode("utf8")
+                if len(w) < 4 and any ([ww.isupper() for ww in w]):
+                    pass
+                    # continue
+                common_words_dict.add(w.lower())
+            print "got data of size", len(common_words_dict), "from en titles"
 
         f = open("../spellcheck/lists/de/cbbnomcgdf-17166212131-e9u79o.txt")
         for i,l in enumerate(f):
@@ -787,8 +806,9 @@ def main():
     sp = HunspellSpellchecker(hunspell_dict = dictionary,
                               nosuggestions = nosuggestions,
                               minimal_word_size=4, 
-                              common_words=common_words_dict, 
-                              language = language)
+                              common_words=common_words_dict,  
+                              composite_minlen = composite_minlen,
+                              language = language, stringent = stringent)
     sp.correct_html_codes = correct_html_codes
     sp.nosuggestions = nosuggestions
 
