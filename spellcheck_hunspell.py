@@ -73,14 +73,15 @@ hunspellEncoding = 'ISO-8859-15'
 
 class RuleBasedWordAnalyzer():
 
-    def __init__(self, minimal_word_size, multiple_occurence_tol, language, common_words):
+    def __init__(self, minimal_word_size, multiple_occurence_tol, language,
+                 stringent, common_words, composite_minlen):
 
         self.minimal_word_size = minimal_word_size
         self.multiple_occurence_tol = multiple_occurence_tol
         self.language = language
         self.common_words = common_words
-        self.composite_minlen = 3
-        self.stringent = -1
+        self.composite_minlen = composite_minlen
+        self.stringent = stringent
 
     def skipWord(self, smallword, text, loc, use_alt):
         
@@ -263,8 +264,9 @@ class HunspellSpellchecker(abstract_Spellchecker):
     """
 
     def __init__(self, hunspell_dict, minimal_word_size = 3, 
-                 multiple_occurence_tol = 2, nosuggestions=False, 
-                 language="DE", common_words = set([])):
+                 multiple_occurence_tol = 1, nosuggestions=False, 
+                 language="DE", stringent = 0, composite_minlen = 0, 
+                 common_words = set([])):
 
         self._nosuggestions = nosuggestions
         self.correct_html_codes = False
@@ -277,8 +279,9 @@ class HunspellSpellchecker(abstract_Spellchecker):
         self._unknown_words = []
 
         self._replaceBy = {}
+        self.stringent = stringent
 
-        self._wordAnalyzer = RuleBasedWordAnalyzer(minimal_word_size, multiple_occurence_tol, language, common_words)
+        self._wordAnalyzer = RuleBasedWordAnalyzer(minimal_word_size, multiple_occurence_tol, language, stringent, common_words, composite_minlen)
 
         self._init_hunspell(hunspell_dict)
 
