@@ -678,9 +678,10 @@ def run_bot(allPages, sp, pageStore=None):
 
         choice = pywikibot.inputChoice('Commit?', ['Yes', 'No'], ['y', 'n'])
         if choice == 'y':
+            comment = "Fix typographical error"
             callb = CallbackObject()
             Callbacks.append(callb)
-            page.put_async(text, comment="kleine Verbesserungen, Rechtschreibung", callback=callb)
+            page.put_async(text, comment=comment, callback=callb)
 
     for k, v in sp.knownwords.iteritems():
         print "* %s : %s" % (k,v)
