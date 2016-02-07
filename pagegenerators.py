@@ -855,7 +855,7 @@ def UserContributionsGenerator(username, number=250, namespaces=[], site=None):
         yield page[0]
 
 
-def SearchPageGenerator(query, number=100, namespaces=None, site=None):
+def SearchPageGenerator(query, number=50, namespaces=None, site=None):
     """
     Provides a list of results using the internal MediaWiki search engine.
 
