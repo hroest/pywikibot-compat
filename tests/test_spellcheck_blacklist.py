@@ -118,6 +118,19 @@ def getTestCaseKarel4():
         *# Rustige Zomeravond
         """
 
+def getTestSammlungVarnhagen():
+    """ This test checks early abort of quotes
+
+    https://de.wikipedia.org/w/index.php?title=Sammlung_Varnhagen&oldid=149875696
+    """
+
+    return u"""
+
+        * „Meine Sorgfalt für alles Litterarische ist doch eigentlich nur Gleichgültigkeit für dieses; denn es gilt mir nur als bewahrende Schale eines darin liegenden Lebenskernes, und wo nur irgend ein solcher mich anglänzt, möcht' ich jene Schale schützend um ihn her legen! Es geht nothwendigerweise so viel verloren, laßt uns einiges zu retten suchen! laßt uns Bäume pflanzen, die Schatten geben!“
+        Karl August Varnhagen von Ense: ''Tagebücher''. F. A. Brockhaus, Leipzig 1861, Bd. 2, S. 351 f.
+        '
+        """
+
 def getTestCaseSchilcher():
     return u"""
         {{Dieser Artikel|behandelt den österreichischen Rotwein. Für Personen gleichen Namens siehe [[Schilcher (Begriffsklärung)]].}}
@@ -154,14 +167,16 @@ class SpellcheckWordParse(unittest.TestCase):
     def test_words_pietismus(self):
 
         result = self.sp.spellcheck_blacklist(getTestCaseLit(), {'positiver' : 'wrong'}, return_for_db=True)
-        assert len(result) == 15, len(result)
-        assert result ==  [u'Literatur', u'Tobias', u'Burg', u'M\xfcnster', u'zur', u'Signatur', u'von', u'Werken', u'der', u'Bildenden', u'Kunst', u'Angelika', u'Seibt', u'Beck', u'M\xfcnchen']
+        assert len(result) == 16, len(result)
+        assert result ==  [u'Literatur', u'Tobias', u'Burg', u'M\xfcnster', u'zur', u'Signatur', u'von', u'Werken', u'der', u'Bildenden', u'Kunst', u'Angelika', u'Seibt', u'Beck', u'M\xfcnchen', u'Weblinks']
 
         mypage = pywikibot.Page(pywikibot.getSite(), 'Unterschrift')
         text = mypage.getOldVersion(128568384)
         result = self.sp.spellcheck_blacklist(text, {'positiver' : 'wrong'}, return_for_db=True)
-        assert len(result) == 1833, len(result)
+        assert len(result) == 1892, len(result)
 
+        result = self.sp.spellcheck_blacklist(text, {'positiver' : 'wrong'}, return_for_db=True, range_level="full")
+        assert len(result) == 1666, len(result)
 
         result = self.sp.spellcheck_blacklist(getTestCasePietismus(), {'positiver' : 'wrong'}, return_for_db=True)
         assert len(result) == 27, len(result)
@@ -246,8 +261,8 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
         # Nested
         text = "{{test template }} TEXT {{test2 param1 = [[test|test2]] }} MORE TEXT \"some quoted\" TEXT <!-- some comment --> FINAL"
         res = self.sp.forbiddenRanges(text, removeNested=False)
-        assert len(res) == 5
-        assert res == [[0, 18], [24, 58], [41, 55], [69, 82], [88, 109]]
+        assert len(res) == 6, len(res)
+        assert res == [[0, 18], [24, 58], [41, 55], [69, 82], [69, 82], [88, 109]]
         #
         res = self.sp.forbiddenRanges(text)
         assert len(res) == 4
@@ -330,7 +345,7 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
 
         sp = self.sp
 
-        result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'schil' : 'wrong'})
+        result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'schil' : 'wrong'}, range_level="full")
         assert len(result) == 0
 
         result = sp.spellcheck_blacklist(getTestCaseSchilcher(), {'weins' : 'wrong'})
@@ -345,6 +360,11 @@ class SpellcheckBlacklistTestCase(unittest.TestCase):
 
         result = sp.spellcheck_blacklist(getTestCaseFrieden(), {'positiver' : 'wrong'})
         assert len(result) == 0
+
+    def test_spellcheck_blacklist_7(self):
+
+        result = self.sp.spellcheck_blacklist(getTestSammlungVarnhagen(), {'nothwendigerweise' : 'wrong'})
+        # assert len(result) == 0
 
     def test_spellcheck_blacklist_detail(self):
         text = u"testtext with mistake&nbsp;and more words"
