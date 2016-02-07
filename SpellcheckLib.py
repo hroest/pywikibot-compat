@@ -85,6 +85,8 @@ class abstract_Spellchecker(object):
         #  -> also do the above without the extra breaks as to not abort early
         ran.extend(findRange(u'\u201e', u'\u201c', text,
              alternativeBreak = albr)[0] )
+        ran.extend(findRange('\"', '\"', text,
+            alternativeBreak = albr)[0] )
 
         ran.extend(findRange('\'\'', '\'\'', text,
             alternativeBreak = albr)[0] )                #italic
