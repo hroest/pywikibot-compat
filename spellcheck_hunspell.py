@@ -209,7 +209,7 @@ class RuleBasedWordAnalyzer():
                         print "SPECIAL: strange ending ern !!!: "
                         pass
 
-                    elif len(other_part) < self.composite_minlen:
+                    elif len(other_part) <= self.composite_minlen:
                         continue
 
                     elif other_part in self.common_words:
