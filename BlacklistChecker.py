@@ -256,10 +256,15 @@ class Blacklistchecker():
 
         # Remove certain candidates 
         candidates = [c for c in candidates if c.find(")") == -1 and c.find("(") == -1 ]
+        candidates = [c for c in candidates if c.decode("utf8").find(u"´") == -1 and 
+                                               c.decode("utf8").find(u"‡") == -1 and
+                                               c.decode("utf8").find(u"”") == -1 and
+                                               c.decode("utf8").find(u"™") == -1 and
+                                               c.decode("utf8").find(u"…") == -1 ]
 
         # 5 Remove candidates that are correctly spelled
         if hspell is not None:
-            candidates = [c for c in candidates if not hspell.spell( c ) ]
+            candidates = [c for c in candidates if not hspell.spell( c )]
 
         # 6 Check for similar things in the database (capitalization)
         final_candidates = []
