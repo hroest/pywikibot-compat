@@ -121,7 +121,7 @@ class RuleBasedWordAnalyzer():
         #  (d) - skip if the word occurs more than n times in the text
         #
         if text.count(smallword) > self.multiple_occurence_tol:
-            print "found word", smallword.encode("utf8"), "multiple times:", text.count(smallword)
+            # print "found word", smallword.encode("utf8"), "multiple times:", text.count(smallword)
             return True
 
         #
@@ -170,16 +170,15 @@ class RuleBasedWordAnalyzer():
         #
         if self.language == "EN":
             if smallword.startswith("de") and smallword[2:] in self.common_words:
-                print "EN can skip composite word", smallword.encode("utf8")
+                # print "EN can skip composite word", smallword.encode("utf8")
                 return True
             if smallword.startswith("re") and smallword[2:] in self.common_words:
-                print "EN can skip composite word", smallword.encode("utf8")
+                # print "EN can skip composite word", smallword.encode("utf8")
                 return True
             if smallword.endswith("ization") and smallword[:-7] in self.common_words:
-                print "EN can skip composite word", smallword.encode("utf8")
+                # print "EN can skip composite word", smallword.encode("utf8")
                 return True
 
-        # print self.stringent
         if (self.language == "DE" or self.language == "EN") and self.stringent < 60:
             for i in range(2, len(smallword)):
 
@@ -193,10 +192,10 @@ class RuleBasedWordAnalyzer():
 
                     if self.language == "EN":
                         if other_part in ["ly"]:
-                            print "Skip English composite word ending with ly: ", smallword.encode("utf8")
+                            # print "Skip English composite word ending with ly: ", smallword.encode("utf8")
                             return True
                         elif other_part in self.common_words:
-                            print "Skip English composite word", smallword[0:i].encode("utf8"), smallword[i:].encode("utf8")
+                            # print "Skip English composite word", smallword[0:i].encode("utf8"), smallword[i:].encode("utf8")
                             return True
 
                     # We should not trust "endings" that are less than 3 characters long
@@ -205,30 +204,30 @@ class RuleBasedWordAnalyzer():
                     #  - see https://de.wikipedia.org/wiki/Deutsche_Deklination#Starke_Deklination_der_Adjektive
                     elif len(other_part) < 3:
                         if other_part in ["n", "r", "s", "e", "en", "er",  "es", "em"]:
-                            print "Skip word according to German declension", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
+                            # print "Skip word according to German declension", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
                             return True
 
                         elif other_part in self.common_words:
-                            print "SPECIAL: strange ending!!!: ", "composite word", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
+                            # print "SPECIAL: strange ending!!!: ", "composite word", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
                             pass
 
 
                     elif self.language == "DE" and other_part in ["ern"]:
-                        print "SPECIAL: strange ending ern !!!: "
+                        # print "SPECIAL: strange ending ern !!!: "
                         pass
 
                     elif len(other_part) <= self.composite_minlen:
                         continue
 
                     elif other_part in self.common_words:
-                        print "skip composite word", smallword[0:i].encode("utf8"), smallword[i:].encode("utf8")
+                        # print "skip composite word", smallword[0:i].encode("utf8"), smallword[i:].encode("utf8")
                         return True
 
                     elif i +2 < len(smallword) and smallword[i:i+1] == "s" and len(first_part) > 2:
                         # potential "Fugenlaut" in German, see https://de.wikipedia.org/wiki/Fugenlaut
                         other_part = smallword[i+1:].lower()
                         if other_part in self.common_words:
-                            print "skip composite fugenlaut word", smallword[0:i].encode("utf8"), "+s+", smallword[i+1:].encode("utf8")
+                            # print "skip composite fugenlaut word", smallword[0:i].encode("utf8"), "+s+", smallword[i+1:].encode("utf8")
                             return True
 
                     # try composite word in German with 1-letter ending
@@ -237,7 +236,7 @@ class RuleBasedWordAnalyzer():
                             len(first_part) > 2 and \
                             len(other_part) > 4 and \
                             other_part[len(other_part)-1:] in ["n", "r", "s", "e"]:
-                        print "SPECIAL: skip composite word (1 letter)", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
+                        # print "SPECIAL: skip composite word (1 letter)", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
                         return True
 
                     # try composite word in German with 2-letter ending
@@ -246,7 +245,7 @@ class RuleBasedWordAnalyzer():
                             len(first_part) > 2 and \
                             len(other_part) > 5 and \
                             other_part[len(other_part)-2:] in ["en", "er",  "es", "em"]:
-                        print "SPECIAL: skip composite word (2 letter)", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
+                        # print "SPECIAL: skip composite word (2 letter)", smallword[0:i].encode("utf8"), "+", smallword[i:].encode("utf8")
                         return True
 
                     other_part = smallword[i:].lower()
