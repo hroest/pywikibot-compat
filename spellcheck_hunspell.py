@@ -90,6 +90,13 @@ class RuleBasedWordAnalyzer():
         #  incorrect but also makes it much faster since the feature
         #  hunspell.suggest takes most time (~6x speedup).
 
+        #
+        #  we check whether it is following an internal link like [[th]]is
+        #
+        if loc > 2 and text[loc-2:loc] == ']]':
+            return True
+
+
         if self.stringent > 1000:
             return False
 
@@ -110,12 +117,6 @@ class RuleBasedWordAnalyzer():
 
         if self.stringent > 500:
             return False
-
-        #
-        #  (c) - we check whether it is following an internal link like [[th]]is
-        #
-        if loc > 2 and text[loc-2:loc] == ']]':
-            return True
 
         #
         #  (d) - skip if the word occurs more than n times in the text
