@@ -280,12 +280,13 @@ class HunspellSpellchecker(abstract_Spellchecker):
 
         self._replaceBy = {}
         self.stringent = stringent
+        self.remove_dissimilar = remove_dissimilar
 
         self._wordAnalyzer = RuleBasedWordAnalyzer(minimal_word_size, multiple_occurence_tol, language, stringent, common_words, composite_minlen)
 
         self._init_hunspell(hunspell_dict, language)
 
-    def _init_hunspell(self, hunspell_dict):
+    def _init_hunspell(self, hunspell_dict, language):
         self.mysite = pywikibot.getSite()
         self.hunspell = hunspell.HunSpell(hunspell_dict + ".dic", hunspell_dict + ".aff")
         self.hunspell_alternative = None
