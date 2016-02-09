@@ -314,7 +314,7 @@ class HunspellSpellchecker(abstract_Spellchecker):
             import os.path
             if os.path.isfile(hunspell_alt + ".dic"):
                 self.hunspell_alternative = hunspell.HunSpell(hunspell_alt + ".dic", hunspell_alt + ".aff")
-                print "found alternative dictionary ....", hunspell_alt + ".dic"
+                # print "found alternative dictionary ....", hunspell_alt + ".dic"
             else:
                 print "Cannot find alternative hunspell dictionary at", hunspell_alt + ".dic"
 
@@ -458,6 +458,8 @@ class HunspellSpellchecker(abstract_Spellchecker):
             if len(spl) >1: LocAdd = 5
             elif len(spl) == 1:
                 spl = re.split(u'–', spl[0])
+                spl = re.split(u'\xa0', spl[0]) # non breaking space
+                ## TODO : do both sides ... 
             ww = spl[0]
             LocAdd += len(ww)+1
             bigword = Word(ww)
